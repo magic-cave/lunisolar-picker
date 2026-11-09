@@ -3,10 +3,10 @@
 React date pickers that let users enter Korean lunar (음력) dates, leap months and 30th days included, and store them in Temporal's calendar format: `'2026-10-14[u-ca=dangi]'`.
 
 [![npm](https://img.shields.io/npm/v/@lunisolar-picker/react?label=npm)](https://www.npmjs.com/package/@lunisolar-picker/react)
-[![CI](https://github.com/kubrickcode/lunisolar-picker/actions/workflows/ci.yml/badge.svg)](https://github.com/kubrickcode/lunisolar-picker/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/github/license/kubrickcode/lunisolar-picker)](LICENSE)
+[![CI](https://github.com/magic-cave/lunisolar-picker/actions/workflows/ci.yml/badge.svg)](https://github.com/magic-cave/lunisolar-picker/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/github/license/magic-cave/lunisolar-picker)](LICENSE)
 
-**[Documentation](https://kubrickcode.github.io/lunisolar-picker/)** · [Getting started](https://kubrickcode.github.io/lunisolar-picker/getting-started/) · [Lunar calendar guide](https://kubrickcode.github.io/lunisolar-picker/guides/lunar-calendar/) · [Changelog](packages/react/CHANGELOG.md)
+**[Documentation](https://lunisolar.magic-cave.com/)** · [Getting started](https://lunisolar.magic-cave.com/getting-started/) · [Lunar calendar guide](https://lunisolar.magic-cave.com/guides/lunar-calendar/) · [Changelog](packages/react/CHANGELOG.md)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/date-range-picker-dark.png">
@@ -80,20 +80,20 @@ A date entered in lunar mode keeps its solar day and records how it was entered,
 
 When a lunar date stops existing while the user scrolls a wheel or moves through a calendar, the picker moves it to the nearest one: a leap month that the new year lacks becomes the regular month, and day 30 becomes day 29. Typed input is never changed; the field reports `'invalid-date'` instead. In a date field, <kbd>L</kbd> toggles the leap month.
 
-Lunar dates cover lunar 1 January 1900 to lunar 30 November 2050 (solar 12 January 2051), the end of the published KASI data. See the [lunar calendar guide](https://kubrickcode.github.io/lunisolar-picker/guides/lunar-calendar/).
+Lunar dates cover lunar 1 January 1900 to lunar 30 November 2050 (solar 12 January 2051), the end of the published KASI data. See the [lunar calendar guide](https://lunisolar.magic-cave.com/guides/lunar-calendar/).
 
 ## Pickers
 
 | Picker | Value |
 |---|---|
-| [`DatePicker`](https://kubrickcode.github.io/lunisolar-picker/pickers/date-picker/) | `'2026-10-14'` |
-| [`DateRangePicker`](https://kubrickcode.github.io/lunisolar-picker/pickers/date-range-picker/) | `{ start: '2026-10-01', end: '2026-10-31' }` |
-| [`MonthPicker`](https://kubrickcode.github.io/lunisolar-picker/pickers/month-picker/) | `'2026-10'` |
-| [`WheelDatePicker`](https://kubrickcode.github.io/lunisolar-picker/pickers/wheel-date-picker/) | `'2026-10-14'` |
-| [`WheelTimePicker`](https://kubrickcode.github.io/lunisolar-picker/pickers/wheel-time-picker/) | `'14:30'` |
-| [`TimePicker`](https://kubrickcode.github.io/lunisolar-picker/pickers/time-picker/) | `'14:30'` |
+| [`DatePicker`](https://lunisolar.magic-cave.com/pickers/date-picker/) | `'2026-10-14'` |
+| [`DateRangePicker`](https://lunisolar.magic-cave.com/pickers/date-range-picker/) | `{ start: '2026-10-01', end: '2026-10-31' }` |
+| [`MonthPicker`](https://lunisolar.magic-cave.com/pickers/month-picker/) | `'2026-10'` |
+| [`WheelDatePicker`](https://lunisolar.magic-cave.com/pickers/wheel-date-picker/) | `'2026-10-14'` |
+| [`WheelTimePicker`](https://lunisolar.magic-cave.com/pickers/wheel-time-picker/) | `'14:30'` |
+| [`TimePicker`](https://lunisolar.magic-cave.com/pickers/time-picker/) | `'14:30'` |
 
-Need something props can't express? Build your own from the [parts and hooks](https://kubrickcode.github.io/lunisolar-picker/guides/customizing-pickers/).
+Need something props can't express? Build your own from the [parts and hooks](https://lunisolar.magic-cave.com/guides/customizing-pickers/).
 
 ## Packages
 

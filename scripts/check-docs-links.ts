@@ -2,8 +2,8 @@ import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
-// Constraint: GitHub Pages serves the site under this path; root-absolute links in MDX skip it and 404 there
-const BASE_PATH = '/lunisolar-picker/';
+// Constraint: the docs are served at the root of lunisolar.magic-cave.com, so every local link must resolve to a built file from /
+const BASE_PATH = '/';
 const EXTERNAL_REFERENCE = /^(?:[a-z]+:|\/\/)/;
 const LOCAL_REFERENCE = /(?:href|src)="([^"#?]+)/g;
 const SITE_ORIGIN = 'https://site.invalid';
