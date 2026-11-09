@@ -13,7 +13,7 @@
 | 게이트 | 결정·행동 | 담당 |
 |---|---|---|
 | A. 라이선스 | 라이선스 종류 결정 | 사용자 |
-| B. GitHub 저장소 | `kubrickcode/lunisolar-picker`의 공개 여부 결정, `Allow GitHub Actions to create and approve pull requests` 켜기, `npm-publish` 환경 만들기(main 브랜치만 허용, 필수 검토자 없음) | 사용자 |
+| B. GitHub 저장소 | `magic-cave/lunisolar-picker`의 공개 여부 결정, `Allow GitHub Actions to create and approve pull requests` 켜기, `npm-publish` 환경 만들기(main 브랜치만 허용, 필수 검토자 없음) | 사용자 |
 | C. npm | `lunisolar-picker` org 생성, 네 패키지에 trusted publisher 등록(저장소, 워크플로 `release.yml`, 환경 `npm-publish`) | 사용자 |
 | D. 첫 배포 | 실기기 QA 통과 확인 후 "chore: release" PR 머지 | 사용자 |
 

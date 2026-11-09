@@ -18,12 +18,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kubrickcode/lunisolar-picker.git",
+    "url": "git+https://github.com/magic-cave/lunisolar-picker.git",
     "directory": "packages/core"
   },
-  "homepage": "https://kubrickcode.github.io/lunisolar-picker/",
+  "homepage": "https://lunisolar.magic-cave.com/",
   "bugs": {
-    "url": "https://github.com/kubrickcode/lunisolar-picker/issues"
+    "url": "https://github.com/magic-cave/lunisolar-picker/issues"
   },
   "type": "module",
   "sideEffects": false,

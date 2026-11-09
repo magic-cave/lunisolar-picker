@@ -20,9 +20,9 @@ pnpm add @lunisolar-picker/react @lunisolar-picker/core @lunisolar-picker/calend
 
 ## Links
 
-- [Documentation](https://kubrickcode.github.io/lunisolar-picker/)
-- [Repository](https://github.com/kubrickcode/lunisolar-picker) · [Issues](https://github.com/kubrickcode/lunisolar-picker/issues)
-- [Changelog](https://github.com/kubrickcode/lunisolar-picker/blob/main/packages/theme/CHANGELOG.md)
+- [Documentation](https://lunisolar.magic-cave.com/)
+- [Repository](https://github.com/magic-cave/lunisolar-picker) · [Issues](https://github.com/magic-cave/lunisolar-picker/issues)
+- [Changelog](https://github.com/magic-cave/lunisolar-picker/blob/main/packages/theme/CHANGELOG.md)
 
 ## License
 
