@@ -112,7 +112,7 @@ Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for
 
 ## License
 
-[MIT](LICENSE) © kubrickcode
+[MIT](LICENSE) © Magic Cave
 
 ---
 
