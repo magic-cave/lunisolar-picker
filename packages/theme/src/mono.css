@@ -1110,12 +1110,42 @@
   /* 입력 칸 옆에 달력·시계 버튼을 붙여 한 줄로 둠. 입력 칸이 없는 picker는 트리거나 휠 하나만 담음 */
   [data-lsp-part="date-picker"],
   [data-lsp-part="date-range-picker"],
+  [data-lsp-part="date-time-picker"],
   [data-lsp-part="month-picker"],
   [data-lsp-part="time-picker"],
   :is([data-lsp-part="wheel-date-picker"], [data-lsp-part="wheel-time-picker"]) {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+  }
+
+  [data-lsp-part="date-time-field"] > [data-lsp-part="popover-trigger"] {
+    min-block-size: calc(var(--lsp-control-size) - 2px);
+    padding-inline: 8px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  [data-lsp-part="date-time-field"]
+    > [data-lsp-part="time-field"]
+    + :is([data-lsp-part="picker-clear"], [data-lsp-part="popover-trigger"]) {
+    margin-inline-start: auto;
+  }
+
+  [data-lsp-part="date-time-panel"] {
+    display: flex;
+    gap: 8px;
+  }
+
+  [data-lsp-part="date-time-panel"] > [data-lsp-part="time-list"] {
+    inline-size: 5.5em;
+    min-block-size: 0;
+    max-block-size: none;
+    flex: none;
+    border-inline-start: 1px solid var(--lsp-border);
+    border-radius: 0;
+    contain: size;
   }
 
   /* 화면에 바로 둔 생년월일 휠은 세 열이 읽힐 만큼만 넓히고 좁은 화면에서는 줄어듦. 시각 휠도 같은 폭이라 위아래로 쌓으면 양쪽 끝이 맞음 */

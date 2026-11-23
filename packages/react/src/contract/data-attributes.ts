@@ -64,6 +64,8 @@ export const PART_NAMES = [
   'time-option',
   'date-picker',
   'date-range-picker',
+  'date-time-picker',
+  'date-time-panel',
   'month-picker',
   'time-picker',
   'wheel-date-picker',

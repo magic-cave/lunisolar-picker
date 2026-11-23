@@ -2,6 +2,8 @@ export type { DatePickerProps, PickerOpenProps } from './date-picker';
 export { DatePicker } from './date-picker';
 export type { DateRangePickerProps } from './date-range-picker';
 export { DateRangePicker } from './date-range-picker';
+export type { DateTimePickerProps } from './date-time-picker';
+export { DateTimePicker } from './date-time-picker';
 export type { MonthPickerProps } from './month-picker';
 export { MonthPicker } from './month-picker';
 export type { PickerSelection } from './picker-selection';
