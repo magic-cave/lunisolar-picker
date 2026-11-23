@@ -1,4 +1,5 @@
 import '@lunisolar-picker/theme/mono.css';
+import { dangi } from '@lunisolar-picker/calendar/dangi';
 import { ko } from '@lunisolar-picker/core/locales/ko';
 import { createRef, type ReactElement, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -9,7 +10,7 @@ import { focusDirectly } from '../testing/focus-directly';
 import { focusOnce } from '../testing/focus-once';
 import { formElementOf } from '../testing/form-element';
 import { dayLabel, KoreanProvider } from '../testing/korean-fixture';
-import { hiddenInputNamed } from '../testing/picker-fixture';
+import { hiddenInputNamed, renderChipTrigger } from '../testing/picker-fixture';
 import { settleEffects } from '../testing/settle-effects';
 import { DateTimePicker, type DateTimePickerProps } from './index';
 
@@ -386,6 +387,237 @@ describe('DateTimePicker', () => {
 
       await expect.element(screen.getByRole('dialog')).toBeVisible();
       await expectNoAxeViolations(document.body);
+    });
+  });
+
+  describe('confirm mode', () => {
+    it('reports completed picks while keeping edits in a draft until confirmed', async () => {
+      const onValueChange = vi.fn();
+      const onPick = vi.fn();
+      const screen = await renderPicker({ commitMode: 'confirm', onValueChange, onPick });
+
+      await triggerOf(screen).click();
+      const confirm = screen.getByRole('button', { name: ko.labels.confirm });
+      await dayOf(screen, TODAY).click();
+
+      await expect.element(confirm).toBeDisabled();
+      await timeOf(screen, '14:30').click();
+      await expect.element(confirm).toBeEnabled();
+      await expect.element(segmentOf(screen, 'year')).toHaveAttribute('data-placeholder');
+      expect(hiddenInputNamed(FIELD_NAME).value).toBe('');
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(onPick.mock.calls).toEqual([[VALUE]]);
+
+      await dayOf(screen, TOMORROW).click();
+      expect(onPick.mock.calls).toEqual([[VALUE], ['2026-11-25T14:30']]);
+      await confirm.click();
+
+      await expect.poll(() => onValueChange.mock.calls).toEqual([['2026-11-25T14:30', VALID]]);
+      await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('reports the committed draft before closing can unmount the picker', async () => {
+      const onValueChange = vi.fn();
+      const App = (): ReactElement | null => {
+        const [isVisible, setVisible] = useState(true);
+        return isVisible ? (
+          <Fixture
+            commitMode="confirm"
+            defaultOpen
+            defaultValue="2026-11-24T15:00"
+            onValueChange={onValueChange}
+            onOpenChange={setVisible}
+          />
+        ) : null;
+      };
+      const screen = await render(<App />);
+      await timeOf(screen, '14:30').click();
+
+      await screen.getByRole('button', { name: ko.labels.confirm }).click();
+
+      await expect.element(triggerOf(screen)).not.toBeInTheDocument();
+      expect(onValueChange.mock.calls).toEqual([[VALUE, VALID]]);
+    });
+
+    it.each(['cancel', 'Escape', 'outside'] as const)('discards the draft after %s', async (dismiss) => {
+      const onValueChange = vi.fn();
+      const screen = await render(
+        <>
+          <Fixture commitMode="confirm" defaultValue={VALUE} onValueChange={onValueChange} />
+          <button type="button">Outside</button>
+        </>,
+      );
+
+      await triggerOf(screen).click();
+      await dayOf(screen, TOMORROW).click();
+      await timeOf(screen, '15:30').click();
+      if (dismiss === 'cancel') await screen.getByRole('button', { name: ko.labels.cancel }).click();
+      if (dismiss === 'Escape') await userEvent.keyboard('{Escape}');
+      if (dismiss === 'outside') await screen.getByRole('button', { name: 'Outside' }).click();
+
+      await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+      expect(hiddenInputNamed(FIELD_NAME).value).toBe(VALUE);
+      expect(onValueChange).not.toHaveBeenCalled();
+      await triggerOf(screen).click();
+      await expect.element(timeOf(screen, '14:30')).toHaveAttribute('data-selected');
+      await expect
+        .element(screen.getByRole('gridcell', { name: dayLabel(TODAY) }))
+        .toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('does not allow confirmation when a new date makes the time too early', async () => {
+      const screen = await renderPicker({
+        commitMode: 'confirm',
+        defaultValue: '2026-11-25T09:00',
+        min: VALUE,
+        defaultOpen: true,
+      });
+
+      await dayOf(screen, TODAY).click();
+
+      await expect.element(timeOf(screen, '09:00')).toHaveAttribute('data-disabled');
+      await expect.element(screen.getByRole('button', { name: ko.labels.confirm })).toBeDisabled();
+    });
+
+    it.each(['popover', 'sheet'] as const)(
+      'starts from the newly controlled value when opening a %s',
+      async (presentation) => {
+        const screen = await renderPicker({ commitMode: 'confirm', value: VALUE, open: false, presentation });
+
+        await screen.rerender(
+          <Fixture commitMode="confirm" value="2026-11-25T18:00" open presentation={presentation} />,
+        );
+
+        await expect.element(timeOf(screen, '18:00')).toHaveAttribute('data-selected');
+        await expect
+          .element(screen.getByRole('gridcell', { name: dayLabel(TOMORROW) }))
+          .toHaveAttribute('aria-selected', 'true');
+      },
+    );
+
+    it('keeps a lunar draft day after its calendar is removed', async () => {
+      const onValueChange = vi.fn();
+      const screen = await renderPicker({
+        calendars: [dangi],
+        commitMode: 'confirm',
+        defaultOpen: true,
+        defaultValue: VALUE,
+        onValueChange,
+      });
+      await screen.getByRole('button', { name: ko.calendarNames.dangi, exact: true }).click();
+      await screen.getByRole('button', { name: dayLabel(TOMORROW, dangi), exact: false }).click();
+
+      await screen.rerender(
+        <Fixture calendars={[]} commitMode="confirm" defaultOpen defaultValue={VALUE} onValueChange={onValueChange} />,
+      );
+
+      await expect
+        .element(screen.getByRole('gridcell', { name: dayLabel(TOMORROW) }))
+        .toHaveAttribute('aria-selected', 'true');
+      await screen.getByRole('button', { name: ko.labels.confirm }).click();
+      await expect.poll(() => onValueChange.mock.calls).toEqual([['2026-11-25T14:30', VALID]]);
+    });
+
+    it('holds the draft across an external value change until the user cancels', async () => {
+      const screen = await renderPicker({ commitMode: 'confirm', value: VALUE, defaultOpen: true });
+      await dayOf(screen, TOMORROW).click();
+      await timeOf(screen, '15:30').click();
+
+      await screen.rerender(<Fixture commitMode="confirm" value="2026-11-24T18:00" defaultOpen />);
+
+      await expect.element(timeOf(screen, '15:30')).toHaveAttribute('data-selected');
+      await screen.getByRole('button', { name: ko.labels.cancel }).click();
+      expect(hiddenInputNamed(FIELD_NAME).value).toBe('2026-11-24T18:00');
+    });
+  });
+
+  describe('sheet mode', () => {
+    it('stacks the calendar and time list and closes on a completed time pick', async () => {
+      const screen = await renderPicker({ presentation: 'sheet' });
+      await triggerOf(screen).click();
+      const dialog = screen.getByRole('dialog');
+
+      await expect.element(dialog).toHaveAttribute('aria-modal', 'true');
+      const panel = dialog.element().querySelector('[data-lsp-part="date-time-panel"]');
+      expect(panel && getComputedStyle(panel).flexDirection).toBe('column');
+      await expect.element(screen.getByRole('button', { name: ko.labels.close })).toBeVisible();
+
+      await dayOf(screen, TODAY).click();
+      await timeOf(screen, '14:30').click();
+
+      await expect.element(dialog).not.toBeInTheDocument();
+      expect(hiddenInputNamed(FIELD_NAME).value).toBe(VALUE);
+    });
+
+    it('shows confirmation controls in a confirm-mode sheet', async () => {
+      const screen = await renderPicker({ presentation: 'sheet', commitMode: 'confirm', defaultOpen: true });
+
+      await expect.element(screen.getByRole('button', { name: ko.labels.cancel })).toBeVisible();
+      await expect.element(screen.getByRole('button', { name: ko.labels.confirm })).toBeDisabled();
+    });
+  });
+
+  describe('lunar calendar', () => {
+    it('preserves an annotated pick and moves it to Gregorian when that calendar is removed', async () => {
+      const onValueChange = vi.fn();
+      const screen = await renderPicker({ calendars: [dangi], onValueChange });
+      await triggerOf(screen).click();
+      const lunarToggle = screen.getByRole('button', { name: ko.calendarNames.dangi, exact: true });
+      await lunarToggle.click();
+      await screen.getByRole('button', { name: dayLabel(TODAY, dangi), exact: false }).click();
+      await timeOf(screen, '14:30').click();
+
+      await expect.poll(() => onValueChange.mock.calls).toEqual([[`${VALUE}[u-ca=dangi]`, VALID]]);
+      await screen.rerender(<Fixture calendars={[]} onValueChange={onValueChange} />);
+      await expect.poll(() => hiddenInputNamed(FIELD_NAME).value).toBe(VALUE);
+    });
+  });
+
+  describe('app trigger and slots', () => {
+    it('hands the app formatted text and focuses its trigger through the ref', async () => {
+      const ref = createRef<{ focus(): void }>();
+      const screen = await renderPicker({
+        ref,
+        value: VALUE,
+        placeholder: 'Deadline',
+        renderTrigger: renderChipTrigger,
+      });
+
+      await expect.element(screen.getByRole('spinbutton')).not.toBeInTheDocument();
+      const chip = screen.getByRole('button', { name: '2026. 11. 24 14:30' });
+      ref.current?.focus();
+      await expect.element(chip).toHaveFocus();
+
+      await screen.rerender(
+        <Fixture ref={ref} value={null} placeholder="Deadline" renderTrigger={renderChipTrigger} />,
+      );
+
+      await expect.element(screen.getByRole('button', { name: 'Deadline' })).toBeVisible();
+    });
+
+    it('reports a malformed value once even though the field view is not rendered', async () => {
+      const value = '2026-11-24T05:30:00.000Z';
+      const onInvalidValue = vi.fn();
+      const props = { value, onInvalidValue, placeholder: 'Deadline', renderTrigger: renderChipTrigger };
+      const screen = await renderPicker(props);
+
+      await expect.element(screen.getByRole('button', { name: 'Deadline' })).toBeVisible();
+      await screen.rerender(<Fixture {...props} />);
+      await settleEffects();
+
+      expect(onInvalidValue.mock.calls).toEqual([[value, 'invalid-time']]);
+    });
+
+    it('renders a custom calendar cell and a footer below the panel', async () => {
+      const screen = await renderPicker({
+        defaultOpen: true,
+        footer: <p>Deadline help</p>,
+        renderCell: (info) => <span>Day {info.day}</span>,
+      });
+
+      await expect.element(screen.getByText('Day 24', { exact: true })).toBeVisible();
+      const footer = screen.getByText('Deadline help').element();
+      expect(footer.previousElementSibling).toHaveAttribute('data-lsp-part', 'date-time-panel');
     });
   });
 });

@@ -1148,6 +1148,18 @@
     contain: size;
   }
 
+  [data-lsp-part="sheet"] [data-lsp-part="date-time-panel"] {
+    flex-direction: column;
+  }
+
+  [data-lsp-part="sheet"] [data-lsp-part="date-time-panel"] > [data-lsp-part="time-list"] {
+    inline-size: auto;
+    max-block-size: 240px;
+    border-block-start: 1px solid var(--lsp-border);
+    border-inline-start: 0;
+    contain: none;
+  }
+
   /* 화면에 바로 둔 생년월일 휠은 세 열이 읽힐 만큼만 넓히고 좁은 화면에서는 줄어듦. 시각 휠도 같은 폭이라 위아래로 쌓으면 양쪽 끝이 맞음 */
   :is([data-lsp-part="wheel-date-picker"], [data-lsp-part="wheel-time-picker"]) > [data-lsp-part="wheel"] {
     inline-size: 288px;
@@ -1162,6 +1174,7 @@
   }
 
   /* 입력 칸이 없는 picker는 값을 보이는 트리거가 입력 칸 자리라 입력 칸처럼 위험색 테두리로 무효를 보임 */
+  [data-lsp-part="date-time-picker"][data-invalid] > [data-lsp-part="popover-trigger"],
   [data-lsp-part="month-picker"][data-invalid] > [data-lsp-part="popover-trigger"],
   :is([data-lsp-part="wheel-date-picker"], [data-lsp-part="wheel-time-picker"])[data-invalid]
     > [data-lsp-part="popover-trigger"] {
@@ -1285,6 +1298,7 @@
     }
 
     /* 위험색 테두리가 시스템 색으로 바뀌므로 달력처럼 두께로 무효를 구분함 */
+    [data-lsp-part="date-time-picker"][data-invalid] > [data-lsp-part="popover-trigger"],
     [data-lsp-part="month-picker"][data-invalid] > [data-lsp-part="popover-trigger"],
     :is([data-lsp-part="wheel-date-picker"], [data-lsp-part="wheel-time-picker"])[data-invalid]
       > [data-lsp-part="popover-trigger"] {

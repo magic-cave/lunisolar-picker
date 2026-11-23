@@ -1,6 +1,23 @@
-import { type DateString, type DateTimeString, formatDateTime, type TimeString } from '@lunisolar-picker/calendar';
-import type { DateConstraints } from '@lunisolar-picker/core';
-import { type FocusEvent, type ReactElement, type ReactNode, type Ref, useImperativeHandle, useRef } from 'react';
+import {
+  type CalendarSystem,
+  calendarIdOf,
+  type DateString,
+  type DateTimeString,
+  epochDayOf,
+  formatDate,
+  formatDateTime,
+  type TimeString,
+} from '@lunisolar-picker/calendar';
+import { type CommitMode, type DateConstraints, timeBoundsReason, validateDate } from '@lunisolar-picker/core';
+import {
+  type FocusEvent,
+  type ReactElement,
+  type ReactNode,
+  type Ref,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import { PART_ATTRIBUTE, partAttributes } from '../contract/data-attributes';
 import {
   Calendar,
@@ -8,31 +25,53 @@ import {
   DateTimeField,
   type DateTimeFieldApi,
   HiddenInput,
+  type PickerSettings,
+  type Presentation,
+  type ResolvedPresentation,
   TimeList,
   type UseCalendarProps,
   type UseDateTimeFieldProps,
   useControllableState,
   useDateTimeField,
   usePickerSettings,
+  usePresentation,
 } from '../index';
 import type { PickerOpenProps } from './date-picker';
 import { CalendarIcon, DefaultTrigger } from './default-trigger';
+import { formatDisplayDate } from './format-display-value';
 import { PickerClearButton } from './picker-clear-button';
+import { PickerCloseFooter, PickerFooter } from './picker-footer';
 import { PickerSurface } from './picker-surface';
-import type { PickerTriggerProps } from './trigger-render-props';
+import type { PickerTriggerProps, TriggerRenderProps } from './trigger-render-props';
+import { useAppTriggerProps } from './use-app-trigger-props';
 
 const DEFAULT_MINUTE_STEP = 30;
 const FIELD_SEGMENTS = `[${PART_ATTRIBUTE}="date-field"],[${PART_ATTRIBUTE}="time-field"]`;
-
-type PendingFieldChange = {
-  readonly notify: () => void;
-  readonly value: DateTimeString;
-};
 
 type CalendarDisplayProps = Pick<
   UseCalendarProps,
   'defaultDisplayCalendar' | 'displayCalendar' | 'getCellLabel' | 'onDisplayCalendarChange'
 >;
+
+type DateTimePanelProps = {
+  readonly afterFieldChange: (value: DateTimeString, notify: () => void) => void;
+  readonly field: DateTimeFieldApi;
+  readonly minuteStep: number;
+  readonly onClose: () => void;
+  readonly picker: DateTimePickerProps;
+  readonly presentation: ResolvedPresentation;
+  readonly settings: PickerSettings;
+};
+
+type DateTimeParts = {
+  readonly date: DateString | null;
+  readonly time: TimeString | null;
+};
+
+type PendingFieldChange = {
+  readonly notify: () => void;
+  readonly value: DateTimeString;
+};
 
 export interface DateTimePickerProps
   extends Omit<UseDateTimeFieldProps, 'defaultEntryCalendar' | 'entryCalendar' | 'onEntryCalendarChange'>,
@@ -42,12 +81,16 @@ export interface DateTimePickerProps
   readonly 'aria-label'?: string | undefined;
   readonly 'aria-labelledby'?: string | undefined;
   readonly className?: string | undefined;
+  readonly commitMode?: CommitMode | undefined;
+  readonly footer?: ReactNode;
   readonly id?: string | undefined;
   readonly isClearable?: boolean | undefined;
   readonly onPick?: ((value: DateTimeString) => void) | undefined;
-  readonly presentation?: 'popover' | undefined;
+  readonly placeholder?: string | undefined;
+  readonly presentation?: Presentation | undefined;
   readonly ref?: Ref<{ focus(): void }> | undefined;
   readonly renderCell?: ((info: CellRenderInfo) => ReactNode) | undefined;
+  readonly renderTrigger?: ((props: TriggerRenderProps) => ReactElement) | undefined;
 }
 
 export const DateTimePicker = (props: DateTimePickerProps): ReactElement => {
@@ -56,19 +99,23 @@ export const DateTimePicker = (props: DateTimePickerProps): ReactElement => {
     'aria-label': ariaLabel,
     'aria-labelledby': ariaLabelledBy,
     className,
+    commitMode = 'immediate',
     defaultOpen,
     id,
     isClearable = true,
     minuteStep = DEFAULT_MINUTE_STEP,
     onOpenChange,
-    onPick,
     open,
+    placeholder = '',
+    presentation = 'auto',
     ref,
-    renderCell,
+    renderTrigger,
   } = props;
-  const { locale, calendars, weekStartsOn } = usePickerSettings(props);
-  const { labels } = locale;
+  const settings = usePickerSettings(props);
+  const { labels } = settings.locale;
+  const resolvedPresentation = usePresentation(presentation);
   const [isOpen, setOpen] = useControllableState(open, defaultOpen ?? false, onOpenChange);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const pendingFieldChange = useRef<PendingFieldChange | null>(null);
   const field = useDateTimeField({
     ...props,
@@ -80,100 +127,194 @@ export const DateTimePicker = (props: DateTimePickerProps): ReactElement => {
       if (pending?.value === next) pending.notify();
     },
   });
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  useImperativeHandle(ref, () => ({ focus: field.focus }), [field.focus]);
+  const labelProps = {
+    'aria-describedby': ariaDescribedBy,
+    'aria-label': ariaLabel,
+    'aria-labelledby': ariaLabelledBy,
+    id,
+  };
+  const toAppTriggerProps = useAppTriggerProps({ isOpen, labelProps, onBlur: props.onBlur });
+  const focusInput = (): void => {
+    if (renderTrigger) triggerRef.current?.focus();
+    else field.focus();
+  };
+  useImperativeHandle(ref, () => ({ focus: focusInput }));
 
   const afterFieldChange = (value: DateTimeString, notify: () => void): void => {
     if (field.value === value) notify();
     // Constraint: 고르기나 닫힘 콜백에서 부모가 picker를 언마운트할 수 있어 새 값을 먼저 알림
     else pendingFieldChange.current = { notify, value };
   };
-  const reportPick = (date: DateString | null, time: TimeString | null, shouldClose = false): void => {
-    if (date === null || time === null || (!onPick && !shouldClose)) return;
-    const value = formatDateTime(date, time);
-    if (!value.isOk) return;
-    afterFieldChange(value.value, () => {
-      onPick?.(value.value);
-      if (shouldClose) setOpen(false);
-    });
-  };
-  const pickTime = (time: TimeString): void => {
-    field.setTimePart(time);
-    reportPick(field.datePart, time, true);
+  const clear = (): void => {
+    focusInput();
+    field.clear();
   };
   const leaveField = (event: FocusEvent<HTMLDivElement>): void => {
     const { currentTarget, target, relatedTarget } = event;
     if (isFieldSegment(currentTarget, target) && !isFieldSegment(currentTarget, relatedTarget)) props.onBlur?.();
   };
-  const clear = (): void => {
-    field.focus();
-    field.clear();
-  };
-  const renderTrigger = (triggerProps: PickerTriggerProps): ReactElement => (
-    <DefaultTrigger triggerProps={triggerProps} label={labels.chooseDateTime} icon={<CalendarIcon />} />
-  );
+  const renderPickerTrigger = (triggerProps: PickerTriggerProps): ReactElement =>
+    renderTrigger ? (
+      renderTrigger({
+        displayValue:
+          field.value === null
+            ? ''
+            : `${formatDisplayDate(field.datePart, settings, props.separator)} ${field.timePart}`,
+        isOpen,
+        placeholder,
+        triggerProps: toAppTriggerProps(triggerProps),
+      })
+    ) : (
+      <DefaultTrigger triggerProps={triggerProps} label={labels.chooseDateTime} icon={<CalendarIcon />} />
+    );
 
-  const timeBounds = field.timeBoundsOn(field.datePart);
-  const dateConstraints = dateConstraintsFor(field.dateBounds, props.isDateDisabled);
   const isClearShown =
     isClearable && (field.datePart !== null || field.timePart !== null) && !field.isDisabled && !field.isReadOnly;
+  const clearButton = isClearShown ? <PickerClearButton label={labels.clear} onClear={clear} /> : null;
+  const surface = (
+    <PickerSurface
+      isDisabled={field.isDisabled || (field.isReadOnly && !renderTrigger)}
+      isOpen={isOpen}
+      isReadOnly={field.isReadOnly}
+      label={ariaLabel ?? labels.chooseDateTime}
+      onOpenChange={setOpen}
+      presentation={resolvedPresentation}
+      renderTrigger={renderPickerTrigger}
+      triggerRef={triggerRef}
+    >
+      <DateTimePanel
+        key={commitMode}
+        afterFieldChange={afterFieldChange}
+        field={field}
+        minuteStep={minuteStep}
+        onClose={() => setOpen(false)}
+        picker={props}
+        presentation={resolvedPresentation}
+        settings={settings}
+      />
+    </PickerSurface>
+  );
   return (
     <div className={className} {...partAttributes('date-time-picker', { invalid: field.isInvalid, open: isOpen })}>
-      <DateTimeField.View
-        api={field}
-        aria-describedby={ariaDescribedBy}
-        aria-label={ariaLabel}
-        aria-labelledby={ariaLabelledBy}
-        id={id}
-        render={(rootProps) => <div {...rootProps} {...{ onBlur: leaveField }} />}
-      >
-        <DateTimeField.Date />
-        <DateTimeField.Time />
-        {isClearShown ? <PickerClearButton label={labels.clear} onClear={clear} /> : null}
-        <PickerSurface
-          isDisabled={field.isDisabled || field.isReadOnly}
-          isOpen={isOpen}
-          isReadOnly={field.isReadOnly}
-          label={ariaLabel ?? labels.chooseDateTime}
-          onOpenChange={setOpen}
-          presentation="popover"
-          renderTrigger={renderTrigger}
-          triggerRef={triggerRef}
+      {renderTrigger ? (
+        <>
+          {surface}
+          {clearButton}
+        </>
+      ) : (
+        <DateTimeField.View
+          api={field}
+          {...labelProps}
+          render={(rootProps) => <div {...rootProps} {...{ onBlur: leaveField }} />}
         >
-          <div {...partAttributes('date-time-panel')}>
-            <Calendar.Root
-              {...dateConstraints}
-              calendars={calendars}
-              defaultDisplayCalendar={props.defaultDisplayCalendar}
-              displayCalendar={props.displayCalendar}
-              getCellLabel={props.getCellLabel}
-              locale={locale}
-              numberOfMonths={1}
-              onDisplayCalendarChange={props.onDisplayCalendarChange}
-              onPick={(date) => reportPick(date, field.timePart)}
-              onValueChange={field.setDatePart}
-              timeZone={props.timeZone}
-              today={props.today}
-              value={field.datePart}
-              weekStartsOn={weekStartsOn}
-            >
-              <Calendar.Layout renderCell={renderCell} />
-            </Calendar.Root>
-            <TimeList.Root
-              aria-label={labels.chooseTime}
-              max={timeBounds.max ?? undefined}
-              min={timeBounds.min ?? undefined}
-              minuteStep={minuteStep}
-              onPick={pickTime}
-              tabIndex={-1}
-              value={field.timePart}
-            />
-          </div>
-        </PickerSurface>
-      </DateTimeField.View>
-      <HiddenInput {...field.getHiddenInputProps()} />
+          <DateTimeField.Date />
+          <DateTimeField.Time />
+          {clearButton}
+          {surface}
+        </DateTimeField.View>
+      )}
+      <HiddenInput {...field.getHiddenInputProps()} onFocusRequest={focusInput} />
     </div>
   );
+};
+
+const DateTimePanel = ({
+  afterFieldChange,
+  field,
+  minuteStep,
+  onClose,
+  picker,
+  presentation,
+  settings: { calendars, locale, weekStartsOn },
+}: DateTimePanelProps): ReactElement => {
+  // Constraint: 표면이 열릴 때만 마운트되므로 닫거나 취소하면 초안을 버림
+  const [draft, setDraft] = useState<DateTimeParts>(() => ({ date: field.datePart, time: field.timePart }));
+  const isConfirmMode = picker.commitMode === 'confirm';
+  const date = isConfirmMode ? dateInAvailableCalendar(draft.date, calendars) : field.datePart;
+  if (isConfirmMode && date !== draft.date) setDraft({ ...draft, date });
+  const time = isConfirmMode ? draft.time : field.timePart;
+  const dateConstraints = dateConstraintsFor(field.dateBounds, picker.isDateDisabled);
+  const timeBounds = field.timeBoundsOn(date);
+
+  const reportPick = (pickedDate: DateString | null, pickedTime: TimeString | null, shouldClose = false): void => {
+    const value = combinedValue(pickedDate, pickedTime);
+    if (value === null) return;
+    if (isConfirmMode) {
+      picker.onPick?.(value);
+      return;
+    }
+    afterFieldChange(value, () => {
+      picker.onPick?.(value);
+      if (shouldClose) onClose();
+    });
+  };
+  const selectDate = (next: DateString | null): void => {
+    if (isConfirmMode) setDraft((previous) => ({ ...previous, date: next }));
+    else field.setDatePart(next);
+  };
+  const pickTime = (next: TimeString): void => {
+    if (isConfirmMode) setDraft((previous) => ({ ...previous, time: next }));
+    else field.setTimePart(next);
+    reportPick(date, next, true);
+  };
+
+  const canConfirm =
+    isConfirmMode &&
+    date !== null &&
+    time !== null &&
+    validateDate(date, dateConstraints, { calendars }).isValid &&
+    timeBoundsReason(time, timeBounds) === null;
+  const confirm = (): void => {
+    const value = canConfirm ? combinedValue(date, time) : null;
+    if (value === null) return;
+    field.setParts(date, time);
+    afterFieldChange(value, onClose);
+  };
+
+  return (
+    <>
+      <div {...partAttributes('date-time-panel')}>
+        <Calendar.Root
+          {...dateConstraints}
+          calendars={calendars}
+          defaultDisplayCalendar={picker.defaultDisplayCalendar}
+          displayCalendar={picker.displayCalendar}
+          getCellLabel={picker.getCellLabel}
+          locale={locale}
+          numberOfMonths={1}
+          onDisplayCalendarChange={picker.onDisplayCalendarChange}
+          onPick={(next) => reportPick(next, time)}
+          onValueChange={selectDate}
+          timeZone={picker.timeZone}
+          today={picker.today}
+          value={date}
+          weekStartsOn={weekStartsOn}
+        >
+          <Calendar.Layout renderCell={picker.renderCell} />
+        </Calendar.Root>
+        <TimeList.Root
+          aria-label={locale.labels.chooseTime}
+          max={timeBounds.max ?? undefined}
+          min={timeBounds.min ?? undefined}
+          minuteStep={minuteStep}
+          onPick={pickTime}
+          tabIndex={-1}
+          value={time}
+        />
+      </div>
+      {picker.footer}
+      {isConfirmMode ? (
+        <PickerFooter isConfirmDisabled={!canConfirm} labels={locale.labels} onCancel={onClose} onConfirm={confirm} />
+      ) : null}
+      {!isConfirmMode && presentation === 'sheet' ? <PickerCloseFooter label={locale.labels.close} /> : null}
+    </>
+  );
+};
+
+const combinedValue = (date: DateString | null, time: TimeString | null): DateTimeString | null => {
+  if (date === null || time === null) return null;
+  const result = formatDateTime(date, time);
+  return result.isOk ? result.value : null;
 };
 
 const dateConstraintsFor = (
@@ -187,3 +328,9 @@ const dateConstraintsFor = (
 
 const isFieldSegment = (box: HTMLElement, target: EventTarget | null): boolean =>
   target instanceof Element && box.contains(target.closest(FIELD_SEGMENTS));
+
+const dateInAvailableCalendar = (date: DateString | null, calendars: readonly CalendarSystem[]): DateString | null => {
+  if (date === null || calendars.some((calendar) => calendar.id === calendarIdOf(date))) return date;
+  const solar = formatDate(epochDayOf(date));
+  return solar.isOk ? solar.value : null;
+};
