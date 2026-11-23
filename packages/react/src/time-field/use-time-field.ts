@@ -1,6 +1,7 @@
 import { LunisolarPickerError, type TimeString } from '@lunisolar-picker/calendar';
 import {
   createTimeFieldState,
+  resolveTimeBounds,
   type TimeFieldContext,
   type TimeFieldEvent,
   type TimeFieldState,
@@ -48,6 +49,8 @@ export interface UseTimeFieldProps extends SharedPickerProps {
   readonly value?: string | null | undefined;
   readonly defaultValue?: string | null | undefined;
   readonly onValueChange?: ((value: TimeString | null, details: ValueChangeDetails) => void) | undefined;
+  readonly max?: string | undefined;
+  readonly min?: string | undefined;
   readonly minuteStep?: number | undefined;
   readonly isEndOfDayAllowed?: boolean | undefined;
 }
@@ -58,7 +61,10 @@ export const useTimeField = (props: UseTimeFieldProps): TimeFieldApi => {
   const minuteStep = props.minuteStep ?? DEFAULT_MINUTE_STEP;
   const controlled = useParsedValue(props.value, parseWellFormedTime, String, props.onInvalidValue, PARSE_KEY);
   const [initialValue] = useState(() => controlled.value ?? parseWellFormedTime(props.defaultValue).value);
-  const context: TimeFieldContext = useMemo(() => ({ minuteStep, isEndOfDayAllowed }), [minuteStep, isEndOfDayAllowed]);
+  const context: TimeFieldContext = useMemo(
+    () => ({ bounds: resolveTimeBounds(props.min, props.max), isEndOfDayAllowed, minuteStep }),
+    [isEndOfDayAllowed, minuteStep, props.min, props.max],
+  );
   // Goal: 시 칸 최댓값(23 또는 24)은 store 생성 때 고정되므로 24:00 허용 여부가 바뀌면 store를 새로 만듦. 이전 칸 값은 유지해 onValueChange가 불리지 않음 (preflight 3.9)
   const { state, send } = useStoreInstance(
     (previous: TimeFieldState | undefined) =>
