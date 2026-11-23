@@ -16,6 +16,7 @@
     --lsp-placeholder: #63636b;
     --lsp-radius: 8px;
     --lsp-cell-size: 36px;
+    --lsp-control-size: 40px;
     --lsp-wheel-item-size: 36px;
     --lsp-wheel-visible-count: 5;
     --lsp-shadow-popover: 0 8px 24px -8px rgb(0 0 0 / 0.12);
@@ -81,7 +82,7 @@
     display: inline-flex;
     align-items: center;
     gap: 2px;
-    min-block-size: 40px;
+    min-block-size: var(--lsp-control-size);
     padding-inline: 12px;
     border: 1px solid var(--lsp-border);
     border-radius: var(--lsp-radius);
@@ -192,7 +193,7 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    min-block-size: 40px;
+    min-block-size: var(--lsp-control-size);
     padding-inline: 12px;
     border: 1px solid var(--lsp-border);
     border-radius: var(--lsp-radius);
