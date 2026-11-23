@@ -7,7 +7,7 @@ import { Calendar, type PartName, RangeCalendar } from '../index';
 import { renderWithHydration } from '../testing/expect-hydration';
 import { KoreanProvider } from '../testing/korean-fixture';
 import { stubCoarseNarrowScreen } from '../testing/picker-fixture';
-import { DatePicker, DateRangePicker, MonthPicker, TimePicker, WheelDatePicker } from './index';
+import { DatePicker, DateRangePicker, DateTimePicker, MonthPicker, TimePicker, WheelDatePicker } from './index';
 
 // Goal: Next(web-console)·Astro(saju-pictures) SSR에서 서버 HTML과 첫 클라이언트 렌더가 같은지 고정함 (스펙 11장). 오늘은 KoreanProvider가 고정함
 
@@ -28,6 +28,11 @@ const CLOSED_CASES: readonly HydrationCase[] = [
     <WheelDatePicker key="wheel-sheet" presentation="sheet" defaultValue="1990-06-23[u-ca=dangi]" />,
   ],
   ['TimePicker', 'time-picker', <TimePicker key="time" presentation="popover" defaultValue="09:30" />],
+  [
+    'DateTimePicker',
+    'date-time-picker',
+    <DateTimePicker key="date-time" presentation="popover" defaultValue="2026-11-24T14:30" />,
+  ],
 ];
 
 // Constraint: 팝오버·시트 콘텐츠는 마운트 뒤에만 포털로 그려지므로 처음부터 열린 picker도 서버 HTML에는 닫힌 모습이어야 함 (계약 §3.3 Popover)
@@ -45,6 +50,11 @@ const INITIALLY_OPEN_CASES: readonly HydrationCase[] = [
     <WheelDatePicker key="wheel-sheet" presentation="sheet" defaultOpen defaultValue="1990-03-15" />,
   ],
   ['TimePicker', 'time-picker', <TimePicker key="time" presentation="popover" defaultOpen minuteStep={30} />],
+  [
+    'DateTimePicker',
+    'date-time-picker',
+    <DateTimePicker key="date-time" presentation="popover" defaultOpen defaultValue="2026-11-24T14:30" />,
+  ],
 ];
 
 type HydrationCase = readonly [name: string, part: PartName, element: ReactElement];

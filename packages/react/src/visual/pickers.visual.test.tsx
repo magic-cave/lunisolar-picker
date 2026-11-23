@@ -7,6 +7,7 @@ import { Calendar, RangeCalendar } from '../index';
 import {
   DatePicker,
   DateRangePicker,
+  DateTimePicker,
   MonthPicker,
   TimePicker,
   WheelDatePicker,
@@ -18,6 +19,7 @@ import { KoreanProvider } from '../testing/korean-fixture';
 const CONFIGURED_VIEWPORT: Viewport = { height: window.innerHeight, width: window.innerWidth };
 // Goal: 두 달을 나란히 두는 web-console 데스크톱 폭. 기본 폭(480)에서는 두 달이 세로로 쌓여 화면 밖으로 나감. Linux 글꼴 폭 차이를 견디도록 여유를 둠
 const SIDE_BY_SIDE_VIEWPORT: Viewport = { height: 768, width: 1024 };
+const DATE_TIME_VALUE = '2026-11-24T14:30';
 const STAGE_ID = 'stage';
 const SUBJECTS: readonly Subject[] = [
   { name: 'calendar', hasPopover: false, element: <Calendar.Root defaultValue="2026-10-20" /> },
@@ -53,6 +55,24 @@ const SUBJECTS: readonly Subject[] = [
     name: 'time-picker',
     hasPopover: true,
     element: <TimePicker presentation="popover" defaultOpen minuteStep={30} defaultValue="09:30" />,
+  },
+  {
+    name: 'date-time-picker-closed',
+    hasPopover: false,
+    element: <DateTimePicker presentation="popover" defaultValue={DATE_TIME_VALUE} />,
+  },
+  {
+    name: 'date-time-picker-open',
+    hasPopover: true,
+    element: (
+      <DateTimePicker
+        presentation="popover"
+        defaultOpen
+        defaultValue={DATE_TIME_VALUE}
+        min="2026-11-24T14:10"
+        today="2026-11-24"
+      />
+    ),
   },
   { name: 'wheel-date-picker', hasPopover: false, element: <WheelDatePicker defaultValue="1990-03-15" /> },
   { name: 'wheel-time-picker', hasPopover: false, element: <WheelTimePicker defaultValue="09:30" /> },

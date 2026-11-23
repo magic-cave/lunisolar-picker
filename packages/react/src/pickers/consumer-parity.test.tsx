@@ -1,3 +1,4 @@
+import '@lunisolar-picker/theme/mono.css';
 import { brandEpochDay, type DateRangeValue, formatDate, isSameRange } from '@lunisolar-picker/calendar';
 import { validateRange } from '@lunisolar-picker/core';
 import { ko } from '@lunisolar-picker/core/locales/ko';
@@ -5,7 +6,7 @@ import { type FormEvent, type ReactElement, useEffect, useRef, useState } from '
 import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
-import { Calendar, type DateRangeInput } from '../index';
+import { Calendar, type DateRangeInput, type ValueChangeDetails } from '../index';
 import { clickToFocus } from '../testing/click-to-focus';
 import { focusDirectly } from '../testing/focus-directly';
 import { focusOnce } from '../testing/focus-once';
@@ -16,6 +17,7 @@ import { dispatchPointer } from '../testing/pointer';
 import { settleEffects } from '../testing/settle-effects';
 import {
   DateRangePicker,
+  DateTimePicker,
   MonthPicker,
   TimePicker,
   usePickerSelection,
@@ -32,6 +34,11 @@ const BIRTH_DATE_NAME = 'birthDate';
 const BIRTH_FORM_LABEL = '출생 정보';
 const BIRTH_TIME_LABEL = '태어난 시각';
 const BIRTH_TIME_NAME = 'birthTime';
+const DEADLINE_DIALOG_LABEL = '미루기';
+const DEADLINE_NAME = 'deadline';
+const DEADLINE_TODAY = '2026-11-24';
+const DEADLINE_TOMORROW = '2026-11-25';
+const DEADLINE_MIN = `${DEADLINE_TODAY}T14:10`;
 const HOLIDAYS: Readonly<Record<string, string>> = { '2026-10-09': '한글날' };
 const HOLIDAY_DOT_ID = 'holiday-dot';
 const JOIN_ROOM_LABEL = '방 참가';
@@ -60,6 +67,11 @@ type BirthTimeFormProps = {
 type ControllerReservationFormProps = {
   readonly onBlur: () => void;
   readonly onSearch: (period: DateRangeInput) => void;
+};
+
+type DeadlineDialogProps = {
+  readonly onSubmitDeadline: (deadline: FormDataEntryValue | null) => void;
+  readonly onValueChange: (value: string | null, details: ValueChangeDetails) => void;
 };
 
 type JoinRoomDialogProps = {
@@ -178,6 +190,48 @@ const ControllerReservationForm = ({ onBlur, onSearch }: ControllerReservationFo
       <button type="button">{OUTSIDE_BUTTON_LABEL}</button>
       <button type="submit">{SUBMIT_LABEL}</button>
     </form>
+  );
+};
+
+const DeadlineDialog = ({ onSubmitDeadline, onValueChange }: DeadlineDialogProps): ReactElement => {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [selection, setSelection] = useState<{
+    readonly details: ValueChangeDetails | null;
+    readonly value: string | null;
+  }>({ details: null, value: null });
+  useEffect(() => {
+    dialogRef.current?.showModal();
+  }, []);
+  const { details, value } = selection;
+  const validity = details?.validity;
+
+  return (
+    <dialog ref={dialogRef} aria-label={DEADLINE_DIALOG_LABEL}>
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (validity?.isValid) onSubmitDeadline(new FormData(event.currentTarget).get(DEADLINE_NAME));
+        }}
+      >
+        <DateTimePicker
+          presentation="popover"
+          today={DEADLINE_TODAY}
+          min={DEADLINE_MIN}
+          minuteStep={30}
+          name={DEADLINE_NAME}
+          value={value}
+          onValueChange={(nextValue, nextDetails) => {
+            setSelection({ details: nextDetails, value: nextValue });
+            onValueChange(nextValue, nextDetails);
+          }}
+        />
+        {validity && !validity.isValid ? (
+          <p role="alert">{validity.reasons.map((reason) => ko.labels.validation[reason]).join(' ')}</p>
+        ) : null}
+        <button type="submit">{SUBMIT_LABEL}</button>
+      </form>
+    </dialog>
   );
 };
 
@@ -656,6 +710,59 @@ describe('consumer parity', () => {
       await expect
         .element(screen.getByRole('spinbutton', { name: ko.labels.day }))
         .toHaveAttribute('aria-valuetext', '30');
+    });
+  });
+
+  describe('adhdmux', () => {
+    it('chooses a future deadline from a native modal and rejects a typed past deadline', async () => {
+      const onSubmitDeadline = vi.fn();
+      const onValueChange = vi.fn<DeadlineDialogProps['onValueChange']>();
+      const screen = await renderInApp(
+        <DeadlineDialog onSubmitDeadline={onSubmitDeadline} onValueChange={onValueChange} />,
+      );
+      const dialog = screen.getByRole('dialog', { name: DEADLINE_DIALOG_LABEL }).element();
+      if (!(dialog instanceof HTMLDialogElement)) throw new Error('deadline fixture should render a dialog element');
+      const trigger = screen.getByRole('button', { name: ko.labels.chooseDateTime });
+      const popover = screen.getByRole('dialog', { name: ko.labels.chooseDateTime });
+      const submitButton = screen.getByRole('button', { name: SUBMIT_LABEL });
+
+      await trigger.click();
+      await expect.element(popover).toBeVisible();
+      expect(popover.element().closest('dialog')).toBe(dialog);
+      await popover.getByRole('button', { name: dayLabel(DEADLINE_TODAY) }).click();
+      await expect.element(popover.getByRole('option', { name: '14:00' })).toHaveAttribute('aria-disabled', 'true');
+      await expect.element(popover.getByRole('option', { name: '14:30' })).not.toHaveAttribute('aria-disabled');
+
+      await popover.getByRole('button', { name: dayLabel(DEADLINE_TOMORROW) }).click();
+      await expect.poll(() => popover.element().querySelector('[role="option"][aria-disabled="true"]')).toBeNull();
+      await popover.getByRole('option', { name: '09:00' }).click();
+      await expect.element(popover).not.toBeInTheDocument();
+
+      const chosenDeadline = `${DEADLINE_TOMORROW}T09:00`;
+      expect(onValueChange).toHaveBeenLastCalledWith(chosenDeadline, VALID_DETAILS);
+      expect(new Date(onValueChange.mock.lastCall?.[0] ?? '').getTime()).toBe(new Date(2026, 10, 25, 9, 0).getTime());
+      await submitButton.click();
+      expect(onSubmitDeadline.mock.calls).toEqual([[chosenDeadline]]);
+
+      await trigger.click();
+      await popover.getByRole('button', { name: dayLabel(DEADLINE_TODAY) }).click();
+      await focusDirectly(popover.getByRole('option', { name: '14:30' }));
+      await userEvent.keyboard('{Escape}');
+      await expect.element(popover).not.toBeInTheDocument();
+      expect(dialog.open).toBe(true);
+      await expect.element(trigger).toHaveFocus();
+
+      await clickToFocus(screen.getByRole('spinbutton', { name: ko.labels.hour }));
+      await userEvent.keyboard('1400');
+      expect(onValueChange).toHaveBeenLastCalledWith(`${DEADLINE_TODAY}T14:00`, {
+        validity: { isValid: false, reasons: ['before-min'] },
+      });
+      await expect.element(screen.getByRole('alert')).toHaveTextContent(ko.labels.validation['before-min']);
+      await submitButton.click();
+      expect(onSubmitDeadline.mock.calls).toEqual([[chosenDeadline]]);
+
+      await userEvent.keyboard('{Escape}');
+      await expect.poll(() => dialog.open).toBe(false);
     });
   });
 
