@@ -63,6 +63,10 @@ formatDate(epochDay, calendar = gregory): Result<DateString, ValidationReason>
 epochDayOf(value): EpochDay; calendarIdOf(value): CalendarId; isSameDay(a, b): boolean
 addDays(value: DateString, amount: number, options?: ParseDateOptions): Result<DateString, ValidationReason>   // [M1-T3] 입력의 역법 표기 유지, 표기 역법이 calendars에 없으면 'invalid-date', 범위 밖이면 'outside-calendar-range', amount가 정수가 아니면 LunisolarPickerError
 type TimeString; parseTime(input, { isEndOfDayAllowed? }); formatTime(hour, minute, { isEndOfDayAllowed? })
+type DateTimeString; interface ParsedDateTime { readonly date: ParsedDate; readonly time: ParsedTime; readonly value: DateTimeString }
+parseDateTime(input: string, options?: ParseDateOptions): Result<ParsedDateTime, ValidationReason>
+formatDateTime(date: DateString, time: TimeString): Result<DateTimeString, ValidationReason>
+datePartOf(value: DateTimeString): DateString; timePartOf(value: DateTimeString): TimeString
 type MonthString; parseMonth(input); formatMonth(year, month)
 interface DateRangeValue { readonly start: DateString; readonly end: DateString | null }
 normalizeDateRange(start, end): Result<DateRangeValue, ValidationReason>; isSameRange(a, b): boolean
@@ -254,7 +258,12 @@ export interface DateFieldResult { readonly epochDay: EpochDay | null; readonly 
 createDateFieldState(context, initial: { selected: SelectedDay | null; entryCalendarId: CalendarId }): DateFieldState
 dateFieldReducer; dateFieldResult(state, context): DateFieldResult
 
-export interface TimeFieldContext { readonly minuteStep: number; readonly isEndOfDayAllowed: boolean }
+export interface TimeBounds { readonly max: TimeString | null; readonly min: TimeString | null }
+NO_TIME_BOUNDS: TimeBounds
+resolveTimeBounds(min: string | null | undefined, max: string | null | undefined): TimeBounds
+timeBoundsReason(time: TimeString, bounds: TimeBounds): 'before-min' | 'after-max' | null
+
+export interface TimeFieldContext { readonly bounds?: TimeBounds | undefined; readonly minuteStep: number; readonly isEndOfDayAllowed: boolean }
 export interface TimeFieldState extends SegmentGroup<TimeSegmentKind> {}
 export type TimeFieldEvent = SegmentEvent | { type: 'text.paste'; text } | { type: 'value.sync'; time: TimeString | null };
 export interface TimeFieldResult { readonly time: TimeString | null; readonly validity: Validity }
@@ -321,7 +330,7 @@ export interface LocaleData {
   formatDateLabel(fields: DateFields, calendarId): string;                      // 요일·역법 이름 없는 날짜 (칸 이름의 보조 역법 부분) [M4 제안 1]
   formatSecondaryLabel(label: SecondaryDateLabel): string;
   readonly calendarNames: Record<CalendarId, string>;
-  readonly labels: LocaleLabels;   // 계약 원안 그대로 (previousMonth … validation). [M4-T3] previousYear·nextYear 추가(월 보기의 1년 이동). previousYears·nextYears는 연 보기의 쪽 이동
+  readonly labels: LocaleLabels;   // 계약 원안 그대로 (previousMonth … validation). [M4-T3] previousYear·nextYear 추가(월 보기의 1년 이동). previousYears·nextYears는 연 보기의 쪽 이동. `chooseDateTime`은 날짜·시각 선택 트리거와 대화상자의 기본 이름
 }
 defineLocale(locale): LocaleData
 formatDateForField(epochDay, calendar, locale, separator?): string
@@ -403,7 +412,8 @@ export function partAttributes(part: PartName, flags?: StateFlags): DataAttribut
 |---|---|
 | `DateField.{Root, Segment({ index }), Separator, HiddenInput, LeapMonthToggle}`, `useDateField`, `useDateFieldContext` | Root에 children이 없으면 로케일 순서로 세그먼트·구분자·윤달 토글·hidden input을 그림. `entryCalendar`·`defaultEntryCalendar`·`onEntryCalendarChange`, `separator`. 역법 규칙: 값이 있으면 값의 역법이 이긴다. `entryCalendar`·`defaultEntryCalendar`는 빈 필드에만 적용된다. 마운트와 부모의 값 동기화는 콜백을 보내지 않는다(사용자 조작만 보고). 단 값이 있는 상태에서 부모가 `entryCalendar` prop을 바꾸면 명시적 요청으로 보고, 값을 새 역법으로 다시 표기해 `onValueChange`를 보낸다. 부모가 다른 역법의 값을 넣으면 필드는 그 역법으로 바뀌지만 `onEntryCalendarChange`는 부르지 않으므로, 제어형 `entryCalendar`와 어긋날 수 있다. `L`(한글 모드의 `ㅣ` 포함, 물리 키 KeyL)로 윤달을 전환하고, Ctrl·Cmd·Alt 조합 키는 브라우저에 넘긴다 |
 | `DateRangeField.{Root, Start, End, Separator}`, `useDateRangeField` | 시작일을 다 채우면 종료일로 이동, `startName`·`endName`, `RangeConstraints`. 역법 규칙은 DateField와 같다(범위 값의 start 역법이 이김) |
-| `TimeField.{Root, Segment({ index }), Separator, HiddenInput}`, `useTimeField` | `minuteStep`, `isEndOfDayAllowed`. 기기 로케일과 무관하게 24시간제. 형식이 맞는 `24:00`은 허용되지 않아도 형식 오류가 아니라 제약 위반이다: 칸에 그대로 보이고 invalid로 표시되며, 공개 값은 `null`이고 `onInvalidValue`는 형식이 틀린 문자열에만 불린다. `isEndOfDayAllowed`를 바꿔도 입력은 유지되고 콜백은 없다. 직접 입력한 분은 `minuteStep`에 맞지 않아도 유효하다(간격은 화살표 키에만 적용) |
+| `DateTimeField.{Root, View, Date, Time, HiddenInput}`, `useDateTimeField`, `useDateTimeFieldContext` | 한 상자에 날짜와 시각 칸을 둔다. 날짜 마지막 칸에서 시로 이동하며, 시에서 왼쪽 화살표로 돌아간다. 두 부분이 모두 있어야 `DateTimeString` 값을 만든다. 한쪽이 비면 `incomplete`이고, `null`을 알린 직후 부모가 같은 `null`을 내려도 남은 칸을 유지한다. `min`·`max`는 날짜 또는 날짜·시각이다. `View`는 외부에서 만든 훅 API를 받는다 |
+| `TimeField.{Root, Segment({ index }), Separator, HiddenInput}`, `useTimeField` | `minuteStep`, `isEndOfDayAllowed`, `min`·`max`(`HH:mm`, 양 끝 포함). 범위 밖 시각도 값에 남으며, 유효성은 `before-min` 또는 `after-max`. 기기 로케일과 무관하게 24시간제. 형식이 맞는 `24:00`은 허용되지 않아도 형식 오류가 아니라 제약 위반이다: 칸에 그대로 보이고 invalid로 표시되며, 공개 값은 `null`이고 `onInvalidValue`는 형식이 틀린 문자열에만 불린다. `isEndOfDayAllowed`를 바꿔도 입력은 유지되고 콜백은 없다. 직접 입력한 분은 `minuteStep`에 맞지 않아도 유효하다(간격은 화살표 키에만 적용) |
 | `Wheel.{Root, Column, Item, Highlight}`, `useWheel` | `Wheel.Column`은 `useWheel` props(`options`, `value`, `onValueChange`, `isEqual?`, `label`, `disabled?`)와 `renderItem?`을 받음 |
 | `useWheelDate(props): WheelDateApi` | `{ fields; columns: WheelDateColumns; value; entryCalendarId; labels: { year; month; day }; selectYear; selectMonth; selectDay; setEntryCalendar }` |
 | `Popover.{Root, Trigger, Content, Close}`, `usePopover`, `usePopoverContext` | Content는 닫히면 언마운트되고, 마운트 후에만 포털을 그린다(SSR 안전). `Close`에 `onClick`을 주면 앱 핸들러가 먼저 돈 뒤 닫힘. Esc는 열린 동안 `document`에서 받되 `defaultPrevented`·`isComposing`이면 무시한다. 포커스 가두기는 레이아웃 기반이라 jsdom에서는 동작하지 않는다(M5 문서) |
@@ -431,6 +441,7 @@ export function partAttributes(part: PartName, flags?: StateFlags): DataAttribut
 | `useCalendar(props): CalendarApi`, `useCalendarView(): CalendarViewApi`, `useSingleCalendar(): CalendarApi` | `CalendarViewApi.getCellProps(cell)`는 `{ gridCell, button }`(포커스 가능한 칸 버튼은 `data-autofocus`를 가져 열릴 때 선택한 날, 없으면 오늘로 포커스), `selectEpochDay`, `isTodayVisible`, `isInvalid`(보이는 무효: `incomplete` 제외), 빈 확정 값은 required여도 VALID(Calendar·RangeCalendar·MonthCalendar 공통, required는 숨은 입력의 네이티브 검증만; 범위의 보이는 draft 유효성은 그대로) [M4 전체 리뷰]. `selectEpochDay`는 포커스가 루트 안에 있으면 고른 날로 DOM 포커스를 옮긴다(달을 넘기는 바깥 날 포함; 루트 안 앱 버튼에서 불러도 옮김 — M5에서 칸 클릭 경로로 좁힐지 결정). 공개 `useMonthCalendar(props): MonthCalendarApi`. `getRootProps()`(`onBlur`는 포커스가 달력 전체를 벗어날 때, `calendar` 부품 속성, `ref` 포함 — 직접 조립할 때 자기 ref로 덮어쓰지 말고 합칠 것) [M4-T1]. `CalendarApi.getHiddenInputProps()`는 M3 훅과 같은 모양(비제어는 폼 reset 때 마운트 시점 기본값, 그 역법이 빠졌으면 빈 값). disabled 달력은 탭 정지·키보드·월 이동이 모두 멈추고 readOnly는 월 이동만 된다. `Calendar.Cell`의 `tabIndex`·`aria-disabled`·`data-autofocus`·`disabled`와 `Calendar.ViewButton`의 `aria-labelledby`는 예약 속성이다 [M4-T2·T3]. 격자 이름은 보이는 제목과 같은 텍스트의 `aria-label`이라 `ViewButton`과 `Heading`을 함께 써도 id가 겹치지 않는다(`headingId`는 제거) [M4-T3]. `requestFocus()`: 월·연을 고르면 눌렀던 버튼이 사라지므로 다음 보기의 탭 정지로 포커스를 넘긴다. 직접 조립할 때는 `requestFocus` 뒤에 탭 정지를 그리는 보기가 와야 한다 [M4-T3]. 연 보기에서 보기 버튼은 비활성(맨 위 단계) |
 | `RangeCalendar.Root`, `useRangeCalendar(props): RangeCalendarApi`, `useRangeCalendarContext()` | `RangeCalendarApi`: `selection`, `value`, `draftValue`, `validity`, `announcement`, `rootRef`, `setRange`, `commit`, `cancel`, `getHiddenInputProps(side)`. 범위 props에 `startName`·`endName`(범위 훅은 `name`을 받지 않음: `Omit<SharedPickerProps, 'name'>`, M3 DateRangeField 포함). `validity`는 화면에 보이는 범위(선택 중이면 draft)의 유효성이고, `data-invalid`는 확정 값 기준이다(단일 `CalendarApi.validity`는 확정 값). `aria-selected`는 범위 안 모든 날(선택 중이면 anchor~미리보기 포함), 격자는 `aria-multiselectable`, `data-selected`는 양 끝만. 안내(`live-region`)는 기본으로 화면에서 숨겨져 있고 마운트 때는 말하지 않으며 선택이 바뀔 때만 알린다. 끝이 열린 채 확정된 범위는 안내하지 않는다(전용 로케일 키는 M5 후보) [M4-T4] |
 | `MonthCalendar.Root`, `TimeList.Root`, `listTimes(minuteStep, isEndOfDayAllowed)` | `onPick?(value)`(`Calendar.Root`·`MonthCalendar.Root`·`TimeList.Root` 공통): 뷰 API를 거친 모든 받아들여진 선택(칸 클릭, Enter/Space, `selectEpochDay`)마다 불린다. 같은 값 재선택과 확인 모드의 draft 선택 포함. disabled·readOnly·제약에 막힌 날·이동·`sendSelection`·부모 동기화에는 불리지 않는다. `onValueChange` 다음에 불리며, 완성형 picker는 `onPick`으로 닫는다(부모가 값을 거부해도 닫히고 부모 값을 보여 줌) [M4-T7]. 범위 달력 `onPick?(value: DateRangeValue)`: 사용자 조작이 범위를 완성할 때(`date.select`, 두 번째 마우스 누름 `pointer.down`, 끌기·끝점 끌기의 `pointer.up`) 불린다. 같은 범위 재선택과 확인 모드 draft 포함, `onValueChange` 다음. `setRange`·프리셋·`commit`·`cancel`·`clear`·부모 동기화·이동·disabled/readOnly·막힌 날에는 불리지 않는다 [M4-T9] |
+| `TimeList.Root`의 시각 제약 | `min`·`max`(`HH:mm`, 양 끝 포함)에 걸리는 항목에 `aria-disabled`·`data-disabled`를 붙인다. 선택과 키보드 이동에서 건너뛴다. |
 | `type CellRenderInfo = MonthGridCell & CellState` | `CellState { isSelected; isToday; isDisabled; isOutsideMonth; isInRange; isRangeStart; isRangeEnd; isPreview; isFocused }` |
 
 `UseCalendarProps`: `SharedPickerProps & DateConstraints & { value?; defaultValue?; onValueChange?; commitMode?; numberOfMonths?; displayCalendar?; defaultDisplayCalendar?; onDisplayCalendarChange?; getCellLabel? }`
@@ -447,7 +458,8 @@ DatePicker: UseCalendarProps & PickerOpenProps & { presentation?; placeholder?; 
 DateRangePicker: UseRangeCalendarProps & PickerOpenProps & { presentation?; placeholder?; separator?; renderTrigger?; renderCell?; presets?: ReactNode; footer?; className? }   // + aria-label·aria-labelledby·aria-describedby·id, ref(시작일 첫 칸, 트리거 모드면 트리거), onPick. 대화상자 이름은 aria-label ?? labels.chooseDateRange [M4-T9]
 MonthPicker: { value?; defaultValue?; onValueChange?: (value: MonthString | null, details) => void; min?; max? } & SharedPickerProps & PickerOpenProps & { presentation?; renderTrigger? }
 WheelDatePicker: SharedPickerProps & DateConstraints(isDateDisabled 제외) & PickerOpenProps & { value?; defaultValue?; onValueChange?; presentation?: 'inline' | 'sheet'; renderTrigger? }
-TimePicker: SharedPickerProps & PickerOpenProps & { value?; defaultValue?; onValueChange?: (value: TimeString | null, details) => void; minuteStep?; isEndOfDayAllowed?; renderTrigger? }
+TimePicker: SharedPickerProps & PickerOpenProps & { value?; defaultValue?; onValueChange?: (value: TimeString | null, details) => void; min?; max?; minuteStep?; isEndOfDayAllowed?; renderTrigger? }
+DateTimePicker: Omit<UseDateTimeFieldProps, 'defaultEntryCalendar' | 'entryCalendar' | 'onEntryCalendarChange'> & PickerOpenProps & { commitMode?; onPick?: (value: DateTimeString) => void; presentation?; renderTrigger?; renderCell?; footer? }  // + 표시 역법 props·getCellLabel, aria-label·aria-labelledby·aria-describedby·id·className·ref·isClearable·placeholder
 
 interface PickerSelection { readonly draftRange: DateRangeValue | null; readonly validity: Validity; setRange(range: { start: string; end: string | null } | null): void; commit(): void; cancel(): void }
 usePickerSelection(): PickerSelection     // DateRangePicker의 presets·footer 안에서만 [M4-T9, M5 제안 3]
@@ -457,9 +469,10 @@ usePickerSelection(): PickerSelection     // DateRangePicker의 presets·footer 
 
 - [M4 전체 리뷰] 지우기: 다섯 완성형 모두 `isClearable?: boolean`(기본 true). 값이 있고 disabled·readOnly가 아닐 때만 입력 칸 옆(트리거·값 트리거 모드는 트리거 옆, 팝업 안에는 두지 않음)에 `labels.clear` 이름의 `picker-clear` 버튼을 보인다. 누르면 `onValueChange(null, { validity: VALID })`를 한 번 알리고(제어는 알리기만) 포커스를 입력 칸 첫 칸이나 트리거로 돌린다. 인라인 WheelDatePicker는 휠을 다시 만들어 오늘을 보이되 값은 비어 있다(M5 항목). 비제어 DatePicker·DateRangePicker·WheelDatePicker는 값의 역법이 `calendars`에서 빠지면 같은 날의 양력 표기로 조용히 옮긴다(Month·TimeString은 역법 주석이 없음). readOnly 값·앱 트리거는 `aria-disabled`+`data-readonly`로 포커스는 되되 눌러도 아무 일도 없고, 입력 칸 모드의 아이콘 버튼은 네이티브 disabled다. disabled·readOnly면 팝업은 여전히 열리지 않는다.
 - [M4-T10] 다섯 완성형 모두 공개 `HiddenInput` 하나(범위는 둘)로 폼에 참여한다. MonthPicker와 시트 WheelDatePicker는 입력 칸이 없어 트리거가 `ref`·`onBlur`·`onInvalidValue`를 늘 맡는다. 값을 보이는 트리거(MonthPicker, 시트 WheelDatePicker)의 이름은 `aria-labelledby`로 "보이는 값 + 동작 라벨"(앱이 aria-labelledby를 주면 "보이는 값 + 앱 라벨", 값이 비면 동작 라벨) — WCAG 2.5.3. TimePicker도 `onPick?(value: TimeString)`. disabled·readOnly인 동안 picker는 팝업을 절대 보이지 않으며(defaultOpen, 제어 open, 열린 채 막힘 모두), 열린 채 막힐 때마다 `onOpenChange(false)`를 한 번 부른다 — §3.3 #1의 entryCalendar처럼 "사용자 조작만 보고" 규칙의 예외. 그래서 프리셋도 막힌 동안 보이지 않고 `usePickerSelection().setRange`의 막힘 검사는 방어용이다. readOnly DatePicker·DateRangePicker는 제어 open으로도 달력을 보여 주지 않는다. WheelDatePicker는 `getWheelRootProps()`를 펼치고 폼은 picker의 HiddenInput이 맡는다(`Wheel.HiddenInput`은 직접 조립용). 시트의 draft 휠은 값을 min/max 안으로 보정한 날에서 시작하고(무효 표시 없음), 확인은 보이는 날을 확정하며(값과 같으면 조용히 닫음) min > max로 고를 날이 없을 때만 비활성이다. 취소·닫기는 draft를 버린다. 스펙 §7.5와 달리 v1 MonthPicker는 값 트리거 + 월 격자다(월 입력 칸 없음).
-- 완성형은 폼 참여를 직접 맡는다: 공개 `HiddenInput`(M4-T8부터 공개 export)을 한 개(DateRangePicker는 startName·endName 두 개, 폼 reset은 한 입력만 처리해 한 번만 보고, 끝은 required && !isOpenEndAllowed일 때만 필수, isOpenEndAllowed가 아니면 시작만 있는 범위는 제출·data-invalid·reset 보고에서 빈 값으로 봄, 끝 입력의 검증 포커스는 종료일 첫 칸) 그려 name·form·required와 폼 reset(비제어는 마운트 시점 기본값, 제어는 무시)을 처리하고, 안의 달력·입력 칸에는 name·form을 넘기지 않는다. `ref`·`onBlur`·`onInvalidValue`는 입력 칸이 맡고, `renderTrigger` 모드에서는 트리거가 맡는다(onBlur는 닫힌 상태에서 트리거를 떠날 때). 시트 표시 + 즉시 모드에는 `Sheet.Close`(labels.close)가 보인다. picker는 `onPick`으로 닫는다 [M4-T8].
+- 완성형은 폼 참여를 직접 맡는다: 공개 `HiddenInput`(M4-T8부터 공개 export)을 한 개(DateRangePicker는 startName·endName 두 개, 폼 reset은 한 입력만 처리해 한 번만 보고, 끝은 required && !isOpenEndAllowed일 때만 필수, isOpenEndAllowed가 아니면 시작만 있는 범위는 제출·data-invalid·reset 보고에서 빈 값으로 봄, 끝 입력의 검증 포커스는 종료일 첫 칸) 그려 name·form·required와 폼 reset(비제어는 마운트 시점 기본값, 제어는 무시)을 처리하고, 안의 달력·입력 칸에는 name·form을 넘기지 않는다. `ref`·`onBlur`·`onInvalidValue`는 입력 칸이 맡고, `renderTrigger` 모드에서는 트리거가 맡는다(onBlur는 닫힌 상태에서 트리거를 떠날 때). 시트 표시 + 즉시 모드에는 `Sheet.Close`(labels.close)가 보인다. DateTimePicker의 닫힘 규칙은 아래와 같고, 기존 picker는 `onPick`으로 닫는다 [M4-T8].
 - 확인 모드의 확인·취소는 완성형 footer가 그린다. 직접 조립할 때는 `Popover.Close onClick={() => calendar.commit()}`처럼 쓴다 [M5-T5].
-- `src/pickers/**`는 `src/index.ts`, `src/contract/**`, `src/settings/**`, `src/utilities/**`, `src/pickers/**`만 import한다(dependency-cruiser) [M4-T11].
+- DateTimePicker는 입력 상자 안에 지우기 버튼과 팝업 트리거를 둔다. 팝업은 한 달 달력과 시각 목록을 제공하며 시트에서는 둘을 세로로 쌓는다. 즉시 모드는 날짜를 고르면 열어 두고, 날짜가 있을 때 시각을 고르면 닫는다. 확인 모드는 두 부분이 완성되고 유효할 때만 확정한다. 폼 입력 하나에 완성된 날짜·시각을 제출한다. `required`는 두 부분이 모두 있는지 검사하며, 범위 위반은 `details.validity`로 알린다.
+- `src/pickers/**`는 React 패키지 안에서 `src/pickers/**`, `src/index.ts`, `src/contract/**`만 import한다(dependency-cruiser) [M4-T11].
 
 ---
 

@@ -114,20 +114,21 @@ react: useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) → Conte
 | 날짜 (음력 입력) | `YYYY-MM-DD[u-ca=dangi]`. 앞부분은 같은 날의 양력 ISO 날짜 | `'2026-10-14[u-ca=dangi]'` |
 | 범위 | `{ start: DateString; end: DateString \| null } \| null` | |
 | 시간 | `HH:mm`. `24:00`은 `isEndOfDayAllowed` 옵션일 때만 | `'14:30'` |
+| 날짜와 시각 | `YYYY-MM-DDTHH:mm`. 음력 입력값은 `[u-ca=dangi]`를 덧붙임 | `'2026-11-24T14:30[u-ca=dangi]'` |
 | 월 | `YYYY-MM` | `'2026-10'` |
 
-- Temporal(`Temporal.PlainDate.from`)이 그대로 읽을 수 있는 형식이다.
+- 날짜는 `Temporal.PlainDate.from`으로, 날짜와 시각은 `Temporal.PlainDateTime.from`으로 읽는다.
 - 필드가 필요하면 `parseDate(value)`로 `{ calendar, year, monthCode, day }`를 얻는다. `monthCode`는 `'M01'`~`'M12'`, 윤달은 `'M04L'`처럼 표기한다.
 - 연도는 해당 음력 해가 시작된 양력 연도다. 단기 연호는 쓰지 않는다.
 
 ### 4.2 무결성
 
-- **브랜드 타입**: 출력 타입은 `DateString`, `TimeString`, `MonthString`, `DateRangeValue`다. 라이브러리 내부와 `parseDate`/`parseTime`/`parseMonth`만 이 값을 만든다.
+- **브랜드 타입**: 출력 타입은 `DateString`, `DateTimeString`, `TimeString`, `MonthString`, `DateRangeValue`다. 라이브러리의 파싱·포맷 함수가 이 값을 만든다.
 - **입구 한 곳에서만 해석한다.** `value`/`defaultValue`는 일반 `string`도 받는다. 경계에서 한 번 해석하고, 내부는 epoch day 정수만 다룬다. 잘못된 값은 `null`로 취급하고, 개발 모드 경고와 `onInvalidValue` 콜백으로 알린다.
 - **정규 형식은 하나다.** 출력은 항상 0을 채운 형식이고, 역법 표기는 `[u-ca=dangi]` 하나뿐이다. 입력도 같은 엄격한 형식만 받는다(`'2026-1-5'`는 거부). 그래서 같은 날짜·같은 역법은 항상 `===`로 같다.
 - **같은 날 비교**: 입력 역법이 달라도 같은 날인지는 `isSameDay(a, b)`로 비교한다.
 - **범위 불변식**: `start ≤ end`이며, 어긋나면 store가 순서를 바꾼다. `end: null`은 선택 중이거나 `isOpenEndAllowed`일 때만 허용한다. 양 끝은 같은 역법을 쓴다.
-- **시간 불변식**: `24:00`은 `isEndOfDayAllowed`이고 분이 0일 때만 허용한다. 날짜와 함께 쓸 때 다음 날로 바꾸지 않는다.
+- **시간 불변식**: `TimeString`의 `24:00`은 `isEndOfDayAllowed`이고 분이 0일 때만 허용한다. `DateTimeString`의 시각 범위는 `00:00`~`23:59`다.
 
 ### 4.3 내부 표현
 
@@ -226,9 +227,9 @@ type ValidationReason =
 
 | 층 | 예 | 안정성 |
 |---|---|---|
-| 훅 | `useCalendar`, `useRangeCalendar`, `useDateField`, `useDateRangeField`, `useWheel`, `useTimeField` | stable |
-| 부품 | `Calendar.*`, `RangeCalendar.Root`, `DateField.*`, `DateRangeField.*`, `Wheel.*`, `TimeField.*`, `Popover.*`, `Sheet.*` | 이름과 `data-*` 목록 stable |
-| 완성형 (`/pickers`) | `DatePicker`, `DateRangePicker`, `MonthPicker`, `WheelDatePicker`, `WheelTimePicker`, `TimePicker` | 조합 예시. minor 버전에서 DOM이 바뀔 수 있다 |
+| 훅 | `useCalendar`, `useRangeCalendar`, `useDateField`, `useDateRangeField`, `useDateTimeField`, `useWheel`, `useTimeField` | stable |
+| 부품 | `Calendar.*`, `RangeCalendar.Root`, `DateField.*`, `DateRangeField.*`, `DateTimeField.*`, `Wheel.*`, `TimeField.*`, `Popover.*`, `Sheet.*` | 이름과 `data-*` 목록 stable |
+| 완성형 (`/pickers`) | `DatePicker`, `DateRangePicker`, `DateTimePicker`, `MonthPicker`, `WheelDatePicker`, `WheelTimePicker`, `TimePicker` | 조합 예시. minor 버전에서 DOM이 바뀔 수 있다 |
 
 그 밖에 calendar 타입과 store 계약(`subscribe`/`getSnapshot`/`send`)도 stable이다. `internal/` 경로는 `exports`에 넣지 않는다.
 
@@ -248,6 +249,7 @@ type ValidationReason =
 | `Calendar` | `Root`, `Header`, `Heading`, `PrevButton`, `NextButton`, `TodayButton`, `CalendarToggle`, `ViewButton`, `Grid`, `HeadCell`, `Cell`, `MonthGrid`, `YearGrid` |
 | `RangeCalendar` | `Root` (나머지는 `Calendar.*` 공유) |
 | `DateField` / `DateRangeField` | `Root`, `Segment`, `Separator`, `HiddenInput` |
+| `DateTimeField` | `Root`, `View`, `Date`, `Time`, `HiddenInput` |
 | `Wheel` | `Root`, `Column`, `Item`, `Highlight` |
 | `TimeField` | `Root`, `Segment`, `HiddenInput` |
 | `Popover` / `Sheet` | `Root`, `Trigger`, `Content`, `Close` |
@@ -278,6 +280,7 @@ type ValidationReason =
 | `MonthPicker` | 필드 + MonthGrid |
 | `WheelDatePicker` | 연·월·일 휠 (인라인 또는 Sheet) |
 | `TimePicker` | TimeField + 분 간격 목록 |
+| `DateTimePicker` | DateTimeField + Popover/Sheet + 한 달 Calendar + TimeList + 선택적 확인·취소 영역 |
 
 - `presentation: 'auto' | 'popover' | 'sheet'`. `auto`는 `pointer: coarse`이면서 좁은 화면이면 Sheet로 연다.
 - 완성형은 모두 부품을 JSX로 나열한 것이다. 문서에 소스를 실어 복사해서 수정할 수 있게 한다.

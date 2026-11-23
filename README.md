@@ -21,7 +21,7 @@ React date pickers that let users enter Korean lunar (음력) dates, leap months
 
 Without the lunar calendar it is still a complete date picker kit:
 
-- **Six pickers**: date, date range, month, wheel date, wheel time and time.
+- **Seven pickers.** Choose date, date and time, date range, month, wheel date, wheel time, or time.
 - **Mouse, keyboard and touch.** Popovers on desktop, bottom sheets on phones. Follows the WAI-ARIA date picker patterns.
 - **Strings in, strings out.** Values are canonical strings (`'2026-10-14'`, `'14:30'`) that compare with `===`, survive URLs and forms, and parse with Temporal.
 - **Headless core.** State lives in a framework-agnostic core; React parts render it, so you can rebuild any picker from the same parts.
@@ -87,6 +87,7 @@ Lunar dates cover lunar 1 January 1900 to lunar 30 November 2050 (solar 12 Janua
 | Picker | Value |
 |---|---|
 | [`DatePicker`](https://lunisolar.magic-cave.com/pickers/date-picker/) | `'2026-10-14'` |
+| [`DateTimePicker`](https://lunisolar.magic-cave.com/pickers/date-time-picker/) | `'2026-11-24T14:30'` |
 | [`DateRangePicker`](https://lunisolar.magic-cave.com/pickers/date-range-picker/) | `{ start: '2026-10-01', end: '2026-10-31' }` |
 | [`MonthPicker`](https://lunisolar.magic-cave.com/pickers/month-picker/) | `'2026-10'` |
 | [`WheelDatePicker`](https://lunisolar.magic-cave.com/pickers/wheel-date-picker/) | `'2026-10-14'` |
@@ -122,4 +123,4 @@ Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for
 
 음력 표는 한국천문연구원(KASI) 음양력 OpenAPI 자료로 만들었고 음력 1900년 1월 1일부터 2050년 11월 30일까지 지원합니다. 브라우저 `Intl`의 한국 음력을 쓰지 않으므로 서버와 휴대폰이 같은 음력 날짜를 보여 줍니다. `dangi`를 import하기 전에는 번들에 들어가지 않습니다.
 
-음력을 켜지 않아도 날짜·기간·월·휠·시간 picker, 키보드와 터치 입력, 모바일 바텀시트, 서버 렌더링, shadcn/ui 토큰 연결을 그대로 쓸 수 있습니다. 한국어 로캘은 `@lunisolar-picker/core/locales/ko`에서 가져옵니다.
+음력을 켜지 않아도 날짜·기간·월·휠·시간 picker(날짜와 시각을 한 칸에 입력하는 DateTimePicker 포함), 키보드와 터치 입력, 모바일 바텀시트, 서버 렌더링, shadcn/ui 토큰 연결을 그대로 쓸 수 있습니다. 한국어 로캘은 `@lunisolar-picker/core/locales/ko`에서 가져옵니다.

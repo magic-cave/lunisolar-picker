@@ -15,11 +15,14 @@ import { TimePicker } from '@lunisolar-picker/react/pickers';
 
 The field always shows 24-hour time, whatever the device locale. Type `930` for `09:30`. Arrow keys on the minute segment move by `minuteStep`, and the button next to the field opens a list of times at that step. Typed minutes do not have to match the step.
 
+`min` and `max` are inclusive. The list keeps times outside the bounds visible and disables them. A typed time outside the bounds stays in the field and is reported with `before-min` or `after-max` in `details.validity`. Unreadable bounds are ignored. If `min` is later than `max`, the list has no selectable time.
+
 | Prop | Type | Default | Description |
 |---|---|---|---|
 | `value`, `defaultValue` | `string \| null` | `null` | Canonical `HH:mm`. |
 | `onValueChange` | `(value: TimeString \| null, details) => void` | | Called when the user changes the time. |
 | `onPick` | `(value: TimeString) => void` | | Called after every accepted pick in the list. |
+| `min`, `max` | `string` | | Inclusive `HH:mm` bounds. `24:00` can be used as an end-of-day bound. |
 | `minuteStep` | `number` | `30` | Step for the list and the minute arrow keys. Must divide 60. |
 | `isEndOfDayAllowed` | `boolean` | `false` | Accept `24:00` as the end of a day. It is never turned into the next day. |
 | `presentation` | `'auto' \| 'popover' \| 'sheet'` | `'auto'` | As on [DatePicker](../../pickers/date-picker/#props). |
