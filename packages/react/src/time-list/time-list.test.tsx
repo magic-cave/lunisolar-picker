@@ -193,6 +193,100 @@ describe('TimeList', () => {
     });
   });
 
+  describe('min/max', () => {
+    it('keeps the default arrow action at the list boundary without bounds', async () => {
+      const screen = await render(<TimeList.Root aria-label={LIST_LABEL} />);
+      const first = screen.getByRole('option', { name: '00:00' }).element();
+      const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowUp' });
+
+      expect(first.dispatchEvent(event)).toBe(true);
+    });
+
+    it('disables the options outside inclusive bounds', async () => {
+      const screen = await render(<TimeList.Root aria-label={LIST_LABEL} min="09:00" max="10:00" />);
+
+      for (const name of ['08:30', '10:30']) {
+        const option = screen.getByRole('option', { name });
+        await expect.element(option).toHaveAttribute('aria-disabled', 'true');
+        await expect.element(option).toHaveAttribute('data-disabled');
+      }
+      for (const name of ['09:00', '10:00']) {
+        const option = screen.getByRole('option', { name });
+        await expect.element(option).not.toHaveAttribute('aria-disabled');
+        await expect.element(option).not.toHaveAttribute('data-disabled');
+      }
+    });
+
+    it('does not choose an option outside the bounds with pointer or keyboard', async () => {
+      const onPick = vi.fn();
+      const onValueChange = vi.fn();
+      const screen = await render(
+        <TimeList.Root aria-label={LIST_LABEL} min="09:00" max="10:00" onPick={onPick} onValueChange={onValueChange} />,
+      );
+      const disabled = screen.getByRole('option', { name: '08:30' });
+
+      await disabled.click({ force: true });
+      await focusDirectly(disabled);
+      await userEvent.keyboard('{Enter} ');
+
+      expect(onPick).not.toHaveBeenCalled();
+      expect(onValueChange).not.toHaveBeenCalled();
+    });
+
+    it('moves only among enabled options with arrow keys, Home, and End', async () => {
+      const screen = await render(<TimeList.Root aria-label={LIST_LABEL} value="08:00" min="09:00" max="10:00" />);
+      const first = screen.getByRole('option', { name: '09:00' });
+      const last = screen.getByRole('option', { name: '10:00' });
+      await focusDirectly(screen.getByRole('option', { name: '08:00' }));
+
+      await userEvent.keyboard('{ArrowDown}');
+      await expect.element(first).toHaveFocus();
+      await userEvent.keyboard('{ArrowUp}');
+      await expect.element(first).toHaveFocus();
+      await userEvent.keyboard('{End}');
+      await expect.element(last).toHaveFocus();
+      await userEvent.keyboard('{ArrowDown}');
+      await expect.element(last).toHaveFocus();
+      await userEvent.keyboard('{Home}');
+      await expect.element(first).toHaveFocus();
+    });
+
+    it('starts at the first enabled option when nothing is selected', async () => {
+      const screen = await render(<TimeList.Root aria-label={LIST_LABEL} min="09:00" max="10:00" />);
+
+      expect(tabStopText(screen.container)).toBe('09:00');
+    });
+
+    it('keeps a selected disabled option marked and as the initial tab stop', async () => {
+      const screen = await render(<TimeList.Root aria-label={LIST_LABEL} value="08:30" min="09:00" max="10:00" />);
+      const selected = screen.getByRole('option', { name: '08:30' });
+
+      await expect.element(selected).toHaveAttribute('data-selected');
+      await expect.element(selected).toHaveAttribute('data-disabled');
+      await expect.element(selected).toHaveAttribute('tabindex', '0');
+    });
+
+    it('keeps focus still and cancels navigation when all options are disabled', async () => {
+      const screen = await render(<TimeList.Root aria-label={LIST_LABEL} min="15:00" max="10:00" />);
+      const first = screen.getByRole('option', { name: '00:00' });
+      await focusDirectly(first);
+      expect(screen.container.querySelector('[role="option"]:not([aria-disabled="true"])')).toBeNull();
+
+      for (const key of ['ArrowDown', 'ArrowUp', 'Home', 'End']) {
+        const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key });
+        expect(first.element().dispatchEvent(event)).toBe(false);
+        await expect.element(first).toHaveFocus();
+      }
+    });
+
+    it.each([undefined, '25:00'])('has no disabled options with min=%s', async (min) => {
+      const screen = await render(<TimeList.Root aria-label={LIST_LABEL} min={min} />);
+
+      await expect.element(screen.getByRole('listbox')).toBeVisible();
+      expect(screen.container.querySelector('[role="option"][aria-disabled]')).toBeNull();
+    });
+  });
+
   describe('scrolling', () => {
     it('scrolls the selected option into the list on mount without scrolling the page', async () => {
       const screen = await render(

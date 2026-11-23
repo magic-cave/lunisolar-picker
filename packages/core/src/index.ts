@@ -6,6 +6,8 @@ export type {
   ResolvedConstraints,
 } from './constraints/resolve-constraints';
 export { resolveConstraints } from './constraints/resolve-constraints';
+export type { TimeBounds } from './constraints/time-bounds';
+export { NO_TIME_BOUNDS, resolveTimeBounds, timeBoundsReason } from './constraints/time-bounds';
 export { isEpochDayInBlockedRange, validateEpochDay, validateEpochRange } from './constraints/validate';
 export type { StringValidity, ValidationOptions } from './constraints/validate-strings';
 export { validateDate, validateRange } from './constraints/validate-strings';
