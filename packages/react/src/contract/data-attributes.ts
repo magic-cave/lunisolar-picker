@@ -39,6 +39,7 @@ export const PART_NAMES = [
   'date-field-separator',
   'date-field-leap-toggle',
   'date-range-field',
+  'date-time-field',
   'time-field',
   'time-field-segment',
   'time-field-separator',

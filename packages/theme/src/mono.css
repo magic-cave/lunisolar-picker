@@ -78,6 +78,7 @@
 
   [data-lsp-part="date-field"],
   [data-lsp-part="date-range-field"],
+  [data-lsp-part="date-time-field"],
   [data-lsp-part="time-field"] {
     display: inline-flex;
     align-items: center;
@@ -95,7 +96,12 @@
       box-shadow var(--lsp-duration);
   }
 
-  [data-lsp-part="date-range-field"] [data-lsp-part="date-field"] {
+  [data-lsp-part="date-time-field"] {
+    column-gap: 8px;
+  }
+
+  [data-lsp-part="date-range-field"] [data-lsp-part="date-field"],
+  [data-lsp-part="date-time-field"] :is([data-lsp-part="date-field"], [data-lsp-part="time-field"]) {
     min-block-size: auto;
     padding-inline: 0;
     border: 0;
@@ -104,33 +110,39 @@
 
   [data-lsp-part="date-field"]:focus-within,
   [data-lsp-part="date-range-field"]:focus-within,
+  [data-lsp-part="date-time-field"]:focus-within,
   [data-lsp-part="time-field"]:focus-within {
     border-color: var(--lsp-muted);
     box-shadow: 0 0 0 3px var(--lsp-ring);
   }
 
-  [data-lsp-part="date-range-field"] [data-lsp-part="date-field"]:focus-within {
+  [data-lsp-part="date-range-field"] [data-lsp-part="date-field"]:focus-within,
+  [data-lsp-part="date-time-field"] :is([data-lsp-part="date-field"], [data-lsp-part="time-field"]):focus-within {
     box-shadow: none;
   }
 
   [data-lsp-part="date-field"][data-invalid],
   [data-lsp-part="date-range-field"][data-invalid],
+  [data-lsp-part="date-time-field"][data-invalid],
   [data-lsp-part="time-field"][data-invalid] {
     border-color: var(--lsp-danger);
   }
 
   [data-lsp-part="date-field"][data-disabled],
   [data-lsp-part="date-range-field"][data-disabled],
+  [data-lsp-part="date-time-field"][data-disabled],
   [data-lsp-part="time-field"][data-disabled] {
     opacity: 0.5;
   }
 
-  [data-lsp-part="date-range-field"] [data-lsp-part="date-field"][data-disabled] {
+  [data-lsp-part="date-range-field"] [data-lsp-part="date-field"][data-disabled],
+  [data-lsp-part="date-time-field"] :is([data-lsp-part="date-field"], [data-lsp-part="time-field"])[data-disabled] {
     opacity: 1;
   }
 
   [data-lsp-part="date-field"][data-readonly],
   [data-lsp-part="date-range-field"][data-readonly],
+  [data-lsp-part="date-time-field"][data-readonly],
   [data-lsp-part="time-field"][data-readonly] {
     border-style: dashed;
   }
@@ -415,6 +427,7 @@
 
     [data-lsp-part="date-field"],
     [data-lsp-part="date-range-field"],
+    [data-lsp-part="date-time-field"],
     [data-lsp-part="time-field"],
     [data-lsp-part="popover-trigger"] {
       transition: none;

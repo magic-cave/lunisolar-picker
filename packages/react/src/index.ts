@@ -10,6 +10,10 @@ export { useDateRangeFieldContext } from './date-range-field/date-range-field-co
 export * as DateRangeField from './date-range-field/parts';
 export type { DateRangeFieldApi, RangeSide, UseDateRangeFieldProps } from './date-range-field/use-date-range-field';
 export { useDateRangeField } from './date-range-field/use-date-range-field';
+export { useDateTimeFieldContext } from './date-time-field/date-time-field-context';
+export * as DateTimeField from './date-time-field/parts';
+export type { DateTimeFieldApi, UseDateTimeFieldProps } from './date-time-field/use-date-time-field';
+export { useDateTimeField } from './date-time-field/use-date-time-field';
 export * from './month-calendar/index';
 export * as Popover from './popover/parts';
 export { usePopoverContext } from './popover/popover-context';
