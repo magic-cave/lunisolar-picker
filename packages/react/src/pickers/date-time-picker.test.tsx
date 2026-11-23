@@ -1,5 +1,6 @@
 import '@lunisolar-picker/theme/mono.css';
 import { dangi } from '@lunisolar-picker/calendar/dangi';
+import { en } from '@lunisolar-picker/core/locales/en';
 import { ko } from '@lunisolar-picker/core/locales/ko';
 import { createRef, type ReactElement, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -379,13 +380,19 @@ describe('DateTimePicker', () => {
       await expect.element(segmentOf(screen, 'year')).toHaveFocus();
     });
 
-    it('has no axe violations in the closed or open view', async () => {
-      const screen = await renderPicker({ defaultValue: VALUE, 'aria-label': ko.labels.chooseDateTime });
+    it('has no axe violations in the closed or open English view', async () => {
+      const screen = await renderPicker({
+        defaultValue: VALUE,
+        'aria-label': en.labels.chooseDateTime,
+        locale: en,
+      });
       await expectNoAxeViolations(document.body);
 
-      await triggerOf(screen).click();
+      await screen.getByRole('button', { name: en.labels.chooseDateTime }).click();
 
-      await expect.element(screen.getByRole('dialog')).toBeVisible();
+      const dialog = screen.getByRole('dialog');
+      await expect.element(dialog).toBeVisible();
+      await expect.poll(() => getComputedStyle(dialog.element()).opacity).toBe('1');
       await expectNoAxeViolations(document.body);
     });
   });
