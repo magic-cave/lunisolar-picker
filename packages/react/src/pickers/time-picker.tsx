@@ -1,6 +1,13 @@
 import type { TimeString } from '@lunisolar-picker/calendar';
-import { VALID } from '@lunisolar-picker/core';
-import { type ReactElement, type Ref, useImperativeHandle, useRef, useState } from 'react';
+import {
+  invalidBecause,
+  resolveTimeBounds,
+  type TimeBounds,
+  timeBoundsReason,
+  VALID,
+  type Validity,
+} from '@lunisolar-picker/core';
+import { type ReactElement, type Ref, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { PART_ATTRIBUTE, partAttributes } from '../contract/data-attributes';
 import {
   HiddenInput,
@@ -58,6 +65,8 @@ export const TimePicker = (props: TimePickerProps): ReactElement => {
     id,
     isClearable = true,
     isEndOfDayAllowed = false,
+    max,
+    min,
     minuteStep = DEFAULT_MINUTE_STEP,
     name,
     onBlur,
@@ -89,6 +98,7 @@ export const TimePicker = (props: TimePickerProps): ReactElement => {
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const isTriggerMode = renderTrigger !== undefined;
   const { labels } = settings.locale;
+  const bounds = useMemo(() => resolveTimeBounds(min, max), [min, max]);
   const parsed = parseTimeValue(currentValue);
   const parsedTime = parsed.time;
   const publicTime = publicTimeOf(parsedTime, isEndOfDayAllowed);
@@ -129,7 +139,6 @@ export const TimePicker = (props: TimePickerProps): ReactElement => {
 
   // Goal: M3 입력 부품과 같은 reset 규칙. 비제어만 마운트 때 기본값으로 돌아가며 알리고, 제어 값은 부모가 정함 (계약 §3.3 #1)
   // Constraint: 화면 값은 해석한 시각끼리, 알림은 폼에 내는 값끼리 비교함. 허용되지 않은 24:00은 폼 값이 비어 있어 빈 값과 같음
-  // Constraint: 목록에서 고른 값과 폼에 내는 값은 늘 형식이 맞고 허용된 시각이라 유효함
   const resetToDefault = (): void => {
     if (value !== undefined) return;
     const restored = parseTimeValue(mountedDefault).time;
@@ -138,7 +147,7 @@ export const TimePicker = (props: TimePickerProps): ReactElement => {
     setCurrentValue(restored);
     const restoredPublic = publicTimeOf(restored, isEndOfDayAllowed);
     if (restoredPublic === publicTime) return;
-    onValueChange?.(restoredPublic, { validity: VALID });
+    onValueChange?.(restoredPublic, { validity: timeValidityOf(restoredPublic, bounds) });
   };
 
   // Constraint: 빈 값은 VALID로 알림. 포커스를 먼저 옮겨, 값이 비며 사라지는 지우기 버튼과 함께 포커스가 body로 떨어지지 않게 함
@@ -160,7 +169,10 @@ export const TimePicker = (props: TimePickerProps): ReactElement => {
     );
 
   // Constraint: 허용되지 않은 24:00은 형식 오류가 아니라 제약 위반이라 입력 칸처럼 무효로 보임 (계약 §3.3 TimeField)
-  const isVisiblyInvalid = sharedProps.invalid === true || (parsedTime !== null && publicTime === null);
+  const isVisiblyInvalid =
+    sharedProps.invalid === true ||
+    (parsedTime !== null && publicTime === null) ||
+    !timeValidityOf(publicTime, bounds).isValid;
   const isClearShown =
     isClearable && parsedTime !== null && sharedProps.disabled !== true && sharedProps.readOnly !== true;
   const clearButton = isClearShown ? <PickerClearButton label={labels.clear} onClear={clearValue} /> : null;
@@ -180,6 +192,8 @@ export const TimePicker = (props: TimePickerProps): ReactElement => {
           aria-label={ariaLabel}
           aria-labelledby={ariaLabelledBy}
           isEndOfDayAllowed={isEndOfDayAllowed}
+          max={max}
+          min={min}
           minuteStep={minuteStep}
           required={required}
           onBlur={onBlur}
@@ -203,6 +217,8 @@ export const TimePicker = (props: TimePickerProps): ReactElement => {
         <TimeList.Root
           aria-label={labels.chooseTime}
           isEndOfDayAllowed={isEndOfDayAllowed}
+          max={max}
+          min={min}
           minuteStep={minuteStep}
           value={currentValue}
           onValueChange={changeValue}
@@ -222,4 +238,9 @@ export const TimePicker = (props: TimePickerProps): ReactElement => {
       />
     </div>
   );
+};
+
+const timeValidityOf = (time: TimeString | null, bounds: TimeBounds): Validity => {
+  const reason = time === null ? null : timeBoundsReason(time, bounds);
+  return reason === null ? VALID : invalidBecause([reason]);
 };

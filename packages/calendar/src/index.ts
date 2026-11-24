@@ -21,6 +21,8 @@ export type { DateRangeValue } from './values/date-range';
 export { isSameRange, normalizeDateRange } from './values/date-range';
 export type { DateString, ParseDateOptions, ParsedDate } from './values/date-string';
 export { addDays, calendarIdOf, epochDayOf, formatDate, isSameDay, parseDate } from './values/date-string';
+export type { DateTimeString, ParsedDateTime } from './values/date-time-string';
+export { datePartOf, formatDateTime, parseDateTime, timePartOf } from './values/date-time-string';
 export type { MonthString, ParsedMonth } from './values/month-string';
 export { formatMonth, parseMonth } from './values/month-string';
 export type { ParsedTime, TimeOptions, TimeString } from './values/time-string';

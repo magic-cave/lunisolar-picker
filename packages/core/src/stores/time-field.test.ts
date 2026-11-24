@@ -4,8 +4,8 @@ import { reduceEvents } from '../testing/reduce-events';
 import { timeString } from '../testing/time-string';
 import { createTimeFieldState, type TimeFieldEvent, timeFieldReducer, timeFieldResult } from './time-field';
 
-const FIVE_MINUTES = { minuteStep: 5, isEndOfDayAllowed: false };
-const END_OF_DAY = { minuteStep: 1, isEndOfDayAllowed: true };
+const FIVE_MINUTES = { isEndOfDayAllowed: false, minuteStep: 5 };
+const END_OF_DAY = { isEndOfDayAllowed: true, minuteStep: 1 };
 
 function typed(digits: string): TimeFieldEvent[] {
   return [
@@ -121,6 +121,31 @@ describe('time field', () => {
 
   it('rejects a minuteStep that does not divide an hour', () => {
     expect(() => createTimeFieldState(null, { isEndOfDayAllowed: false, minuteStep: 7 })).toThrow(LunisolarPickerError);
+  });
+
+  describe('time bounds', () => {
+    const context = { ...FIVE_MINUTES, bounds: { min: timeString('09:00'), max: timeString('18:00') } };
+
+    it.each([
+      ['0830', '08:30', 'before-min'],
+      ['1830', '18:30', 'after-max'],
+    ])('retains digits %s as %s with reason %s', (digits, time, reason) => {
+      const state = reduceEvents(timeFieldReducer, createTimeFieldState(null, context), typed(digits), context);
+
+      expect(timeFieldResult(state, context)).toEqual({ time, validity: { isValid: false, reasons: [reason] } });
+    });
+
+    it.each(['0900', '1800'])('accepts the inclusive boundary %s', (digits) => {
+      const state = reduceEvents(timeFieldReducer, createTimeFieldState(null, context), typed(digits), context);
+
+      expect(timeFieldResult(state, context).validity).toEqual({ isValid: true, reasons: [] });
+    });
+
+    it('validates the bounds only after both segments are filled', () => {
+      const state = reduceEvents(timeFieldReducer, createTimeFieldState(null, context), typed('08'), context);
+
+      expect(timeFieldResult(state, context).validity.reasons).toEqual(['incomplete']);
+    });
   });
 
   describe('24:00 while end of day is disallowed', () => {

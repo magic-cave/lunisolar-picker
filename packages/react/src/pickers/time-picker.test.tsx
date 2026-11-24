@@ -74,6 +74,66 @@ describe('TimePicker', () => {
     });
   });
 
+  describe('min/max', () => {
+    it('disables times outside the bounds and closes after picking an available time', async () => {
+      const onValueChange = vi.fn();
+      const screen = await renderPicker(
+        <TimePicker presentation="popover" min="09:00" max="10:00" onValueChange={onValueChange} />,
+      );
+
+      await screen.getByRole('button', { name: ko.labels.chooseTime }).click();
+      await expect.element(screen.getByRole('option', { name: '08:30' })).toHaveAttribute('aria-disabled', 'true');
+      await expect.element(screen.getByRole('option', { name: '10:30' })).toHaveAttribute('aria-disabled', 'true');
+      await screen.getByRole('option', { name: '09:30' }).click();
+
+      expect(onValueChange.mock.calls).toEqual([['09:30', VALID_DETAILS]]);
+      await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('shows a typed time below min as invalid while retaining the submitted value', async () => {
+      const onValueChange = vi.fn();
+      const screen = await renderPicker(
+        <TimePicker presentation="popover" min="09:00" max="10:00" name={FIELD_NAME} onValueChange={onValueChange} />,
+      );
+
+      await clickToFocus(screen.getByRole('spinbutton', { name: ko.labels.hour }));
+      await userEvent.keyboard('0830');
+      await expect
+        .poll(() => onValueChange.mock.calls.filter(([value]) => value === '08:30'))
+        .toEqual([['08:30', { validity: { isValid: false, reasons: ['before-min'] } }]]);
+
+      expect(screen.container.querySelector('[data-lsp-part="time-picker"]')).toHaveAttribute('data-invalid');
+      expect(hiddenInputNamed(FIELD_NAME).value).toBe('08:30');
+    });
+
+    it('reports the bounds validity when a form reset restores the default time', async () => {
+      const onValueChange = vi.fn();
+      const screen = await renderPicker(
+        <form aria-label={FORM_LABEL}>
+          <TimePicker
+            presentation="popover"
+            min="09:00"
+            name={FIELD_NAME}
+            defaultValue="08:30"
+            onValueChange={onValueChange}
+          />
+        </form>,
+      );
+      const form = formElementOf(screen.getByRole('form', { name: FORM_LABEL }));
+      await screen.getByRole('button', { name: ko.labels.chooseTime }).click();
+      await screen.getByRole('option', { name: '09:30' }).click();
+
+      form.reset();
+
+      await expect
+        .poll(() => onValueChange.mock.calls)
+        .toEqual([
+          ['09:30', VALID_DETAILS],
+          ['08:30', { validity: { isValid: false, reasons: ['before-min'] } }],
+        ]);
+    });
+  });
+
   describe('field', () => {
     it('reports a typed time', async () => {
       const onValueChange = vi.fn();

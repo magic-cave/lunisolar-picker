@@ -1,0 +1,34 @@
+---
+title: DateTimeField parts
+description: Compose date, hour, and minute segments in one input.
+---
+
+```tsx
+import { DateTimeField } from '@lunisolar-picker/react';
+
+<DateTimeField.Root
+  aria-label="Due date and time"
+  name="dueAt"
+  min="2026-11-24T12:00"
+  value={value}
+  onValueChange={(next) => setValue(next)}
+>
+  <DateTimeField.Date />
+  <DateTimeField.Time />
+  <DateTimeField.HiddenInput />
+</DateTimeField.Root>;
+```
+
+The date follows the locale's segment order. After the last date segment, focus moves to the hour. The left arrow in the hour segment returns to the date. You can paste either a date or a full date and time into a date segment. Moving between segments does not call `onBlur`.
+
+| Part | Renders | Notes |
+|---|---|---|
+| `Root` | `div[role=group]` | Owns state and renders the date group, time group, and hidden input by default. |
+| `View` | `div[role=group]` | Renders a field using the `api` from `useDateTimeField`. |
+| `Date` | Date segment group | Renders the locale separators and a leap month toggle when relevant. |
+| `Time` | Time segment group | Renders the hour and minute with a colon between them. |
+| `HiddenInput` | Visually hidden `input` | Submits the canonical value under `name`. |
+
+`min` and `max` accept inclusive date-time or date bounds. A date-only minimum starts at `00:00`, and a date-only maximum ends at `23:59`. A time outside the bounds stays in the field and is reported through `details.validity`. The `minuteStep` prop controls minute arrow keys and defaults to `1`.
+
+Use `useDateTimeField` to read `datePart`, `timePart`, and `validity` independently of the combined `value`. `setParts(date, time)` updates both parts together. `getHiddenInputProps()` connects the field to a form when you compose your own layout. See [DateTimePicker](../../pickers/date-time-picker/) for the combined calendar and time list.

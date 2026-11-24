@@ -1,4 +1,5 @@
 import { formatTime, parseTime, type TimeString } from '@lunisolar-picker/calendar';
+import { NO_TIME_BOUNDS, type TimeBounds, timeBoundsReason } from '../constraints/time-bounds';
 import type { Reducer } from '../create-store';
 import { invalidBecause, type TimeSegmentKind, VALID, type Validity } from '../types';
 import {
@@ -15,8 +16,9 @@ import { assertMinuteStep, END_OF_DAY_HOUR, LAST_HOUR, MINUTES_PER_HOUR, TIME_PA
 const COMPACT_TIME_LENGTHS: ReadonlySet<number> = new Set([3, 4]);
 
 export interface TimeFieldContext {
-  readonly minuteStep: number;
+  readonly bounds?: TimeBounds | undefined;
   readonly isEndOfDayAllowed: boolean;
+  readonly minuteStep: number;
 }
 
 export type TimeFieldEvent =
@@ -76,7 +78,9 @@ export const timeFieldResult = (state: TimeFieldState, context: TimeFieldContext
   if (hour === null && minute === null) return { time: null, validity: VALID };
   if (hour === null || minute === null) return { time: null, validity: invalidBecause(['incomplete']) };
   const time = formatTime(hour, minute, { isEndOfDayAllowed: context.isEndOfDayAllowed });
-  return time.isOk ? { time: time.value, validity: VALID } : { time: null, validity: invalidBecause([time.error]) };
+  if (!time.isOk) return { time: null, validity: invalidBecause([time.error]) };
+  const reason = timeBoundsReason(time.value, context.bounds ?? NO_TIME_BOUNDS);
+  return { time: time.value, validity: reason === null ? VALID : invalidBecause([reason]) };
 };
 
 const pasteTime = (state: TimeFieldState, text: string): TimeFieldState => {

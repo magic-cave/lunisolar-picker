@@ -1,0 +1,64 @@
+---
+title: DateTimePicker
+description: One field and one popover for a date and a time, with a bottom sheet on touch screens.
+---
+
+import { DateTimePickerDemo } from '../../../components/demos/DateTimePickerDemo';
+
+<DateTimePickerDemo client:only="react" />
+
+```tsx
+import { DateTimePicker } from '@lunisolar-picker/react/pickers';
+
+<DateTimePicker
+  aria-label="Due date and time"
+  value={value}
+  onValueChange={(next) => setValue(next)}
+  min="2026-11-24T12:00"
+  max="2026-11-30"
+/>;
+```
+
+Type the date and time in the same field, or open the calendar and time list. The trigger and the clear button sit inside the field. Date segments follow the locale order, and time segments use 24-hour time.
+
+## Values and selection
+
+- A complete value has the form `YYYY-MM-DDTHH:mm`, such as `2026-11-24T14:30`. Lunar entries add `[u-ca=dangi]` to the same solar date and time. Both forms can be read by `Temporal.PlainDateTime.from`. You can compare the first 16 characters to order values by date and time.
+- Seconds, 12-hour notation, `24:00`, UTC offsets, and time zones are unsupported in the value. The picker accepts a full date and time pasted into the date segments, including a space in place of `T`.
+- Both parts must be filled in before the picker has a value. If you clear one part, the value becomes `null` and the other part stays in the field.
+- In immediate mode, picking a date keeps the popover open. Picking a time closes it once a date is present. With `commitMode="confirm"`, picks stay in a draft until Confirm, which requires a complete, valid choice. Closing without confirming discards the draft. The bottom sheet follows the same rules.
+
+## Bounds and forms
+
+The inclusive `min` and `max` bounds accept date-time strings or dates. A date-only `min` starts at `00:00`, and a date-only `max` ends at `23:59`. The calendar disables dates outside the bounds. The time list disables the times outside the bounds on their respective dates.
+
+A value entered outside the bounds stays in the field and is still submitted by the hidden input. Look for `before-min` or `after-max` in `details.validity.reasons` when `onValueChange` runs. Use that validity in your submission logic. Native `required` checks whether the value is present, so it blocks empty or partial entries only. Changing a bound updates the invalid state without calling `onValueChange`.
+
+## Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `value` | `string \| null` | | Controlled canonical date-time string. |
+| `defaultValue` | `string \| null` | `null` | Initial value for uncontrolled use. |
+| `onValueChange` | `(value: DateTimeString \| null, details: { validity }) => void` | | Reports changes to the complete value, or `null` when it becomes incomplete or is cleared. |
+| `onPick` | `(value: DateTimeString) => void` | | Reports an accepted date or time pick when both parts are present, including same-value picks and picks in a confirmation draft. |
+| `min`, `max` | `string` | | Inclusive date-time or date bounds. Unreadable bounds are ignored. |
+| `isDateDisabled` | `(date: DateString) => boolean` | | Disable additional days. |
+| `minuteStep` | `number` | `30` | Interval for list options and minute arrow keys. Must divide 60. Typed minutes can fall between options. |
+| `commitMode` | `'immediate' \| 'confirm'` | `'immediate'` | Commit selections as they are picked or wait for Confirm. |
+| `presentation` | `'auto' \| 'popover' \| 'sheet'` | `'auto'` | Use a popover or bottom sheet. Automatic mode opens a sheet on narrow touch screens. |
+| `open`, `defaultOpen`, `onOpenChange` | `boolean`, `boolean`, `(open: boolean) => void` | | Control the surface and observe changes to its open state. |
+| `isClearable` | `boolean` | `true` | Show the clear button when the date or time is filled. |
+| `separator` | `string` | locale | Separator between date segments. |
+| `renderTrigger` | `(props: TriggerRenderProps) => ReactElement` | | Replace the field with your own trigger. Spread `triggerProps`, including its `ref`, on your button. |
+| `placeholder` | `string` | | Text that `renderTrigger` receives for an empty value. |
+| `renderCell`, `getCellLabel` | | | Customize the cell contents or accessible label. See [Calendar parts](../../parts/calendar/#rendering-a-day). |
+| `footer` | `ReactNode` | | Extra content under the panel. |
+| `displayCalendar`, `defaultDisplayCalendar`, `onDisplayCalendarChange` | | | Control which calendar the calendar panel displays when lunar dates are enabled. |
+| `name`, `form`, `required`, `disabled`, `readOnly`, `invalid` | | | `name` adds one hidden form input. Disabling the picker or making it read-only prevents opening it. |
+| `onBlur` | `() => void` | | Called when focus leaves the field group or the custom trigger. |
+| `onInvalidValue` | `(input: string, reason: ValidationReason) => void` | | Reports an unreadable controlled value, which is treated as empty. |
+| `ref` | `Ref<{ focus(): void }>` | | `focus()` moves to the first segment or your trigger. |
+| `aria-label`, `aria-labelledby`, `aria-describedby`, `id`, `className` | | | Name, describe, and style the picker. |
+
+Set `locale`, `today`, `timeZone`, `weekStartsOn`, and `calendars` here or on `LunisolarProvider`. See the [lunar calendar guide](../../guides/lunar-calendar/) to enable lunar entry, or [DateTimeField parts](../../parts/date-time-field/) for an input without the popup.

@@ -24,6 +24,7 @@
 | 데모 | 경로 | 로케일 |
 |---|---|---|
 | DatePicker | `/pickers/date-picker/` | en(`MM/DD/YYYY`) |
+| DateTimePicker(오늘 정오부터 선택) | `/pickers/date-time-picker/` | en |
 | DateRangePicker(두 달, 확인 후 반영) | `/pickers/date-range-picker/` | en |
 | WheelDatePicker(인라인) | `/pickers/wheel-date-picker/` | en |
 | TimePicker(5분 단위, 24:00 허용) | `/pickers/time-picker/` | en |

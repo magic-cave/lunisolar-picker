@@ -15,6 +15,7 @@ export interface LocaleLabels {
   readonly cancel: string;
   readonly chooseDate: string;
   readonly chooseDateRange: string;
+  readonly chooseDateTime: string;
   readonly chooseMonth: string;
   readonly chooseTime: string;
   readonly clear: string;

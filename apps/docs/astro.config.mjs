@@ -17,6 +17,7 @@ export default defineConfig({
           label: 'Pickers',
           items: [
             'pickers/date-picker',
+            'pickers/date-time-picker',
             'pickers/date-range-picker',
             'pickers/month-picker',
             'pickers/wheel-date-picker',
@@ -26,7 +27,14 @@ export default defineConfig({
         },
         {
           label: 'Parts',
-          items: ['parts/calendar', 'parts/date-field', 'parts/wheel', 'parts/time-field', 'parts/popover-and-sheet'],
+          items: [
+            'parts/calendar',
+            'parts/date-field',
+            'parts/date-time-field',
+            'parts/wheel',
+            'parts/time-field',
+            'parts/popover-and-sheet',
+          ],
         },
         {
           label: 'Guides',

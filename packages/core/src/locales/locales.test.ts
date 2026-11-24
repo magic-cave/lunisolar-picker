@@ -42,6 +42,28 @@ describe('locales', () => {
     },
   );
 
+  describe('date and time labels', () => {
+    it.each([
+      [
+        'en',
+        en,
+        'Choose date and time',
+        'This is before the earliest allowed value.',
+        'This is after the latest allowed value.',
+      ],
+      ['ko', ko, '날짜와 시간 선택', '선택할 수 있는 범위보다 앞입니다.', '선택할 수 있는 범위보다 뒤입니다.'],
+      ['ja', ja, '日時を選択', '選択できる範囲より前です。', '選択できる範囲より後です。'],
+    ])(
+      '%s labels date and time selection and shared range errors',
+      (_, locale, chooseDateTime, beforeMin, afterMax) => {
+        expect(locale.labels).toMatchObject({
+          chooseDateTime,
+          validation: { 'after-max': afterMax, 'before-min': beforeMin },
+        });
+      },
+    );
+  });
+
   describe('ko', () => {
     it('formats headings, month names and day labels for both calendars', () => {
       expect(ko.formatHeading({ year: 2026, monthCode: 'M10' }, 'gregory')).toBe('2026년 10월');

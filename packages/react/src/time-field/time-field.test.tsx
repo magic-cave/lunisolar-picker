@@ -124,6 +124,39 @@ describe('TimeField', () => {
     await expect.poll(() => onValueChange.mock.calls.at(-1)?.[0]).toBe('09:30');
   });
 
+  describe('min/max', () => {
+    it('reports a typed time below min while retaining the submitted value', async () => {
+      const onValueChange = vi.fn();
+      const screen = await render(
+        <TimeField.Root aria-label="Time" min="09:00" name="time" onValueChange={onValueChange} />,
+      );
+
+      await clickToFocus(screen.getByRole('spinbutton', { name: 'Hour' }));
+      await userEvent.keyboard('0830');
+      await expect.element(screen.getByRole('group', { name: 'Time' })).toHaveAttribute('data-invalid');
+
+      expect(onValueChange.mock.calls.filter(([value]) => value === '08:30')).toEqual([
+        ['08:30', { validity: { isValid: false, reasons: ['before-min'] } }],
+      ]);
+      expect(screen.container.querySelector<HTMLInputElement>('input[name="time"]')?.value).toBe('08:30');
+    });
+
+    it.each([
+      ['09:00', '0930', '09:30'],
+      ['abc', '0830', '08:30'],
+    ])('accepts %s as min with entered digits %s', async (min, digits, time) => {
+      const onValueChange = vi.fn();
+      const screen = await render(<TimeField.Root aria-label="Time" min={min} onValueChange={onValueChange} />);
+
+      await clickToFocus(screen.getByRole('spinbutton', { name: 'Hour' }));
+      await userEvent.keyboard(digits);
+      await expect
+        .poll(() => onValueChange.mock.calls.at(-1))
+        .toEqual([time, { validity: { isValid: true, reasons: [] } }]);
+      await expect.element(screen.getByRole('group', { name: 'Time' })).not.toHaveAttribute('data-invalid');
+    });
+  });
+
   describe('minute step', () => {
     it('steps the minute up to the next multiple of the step', async () => {
       const onValueChange = vi.fn();
