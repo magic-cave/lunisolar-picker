@@ -31,6 +31,13 @@ export const buildBoundedTimeColumns = ({
   };
 };
 
+// Constraint: 두 칸에는 24:00이 없으므로 24:00 값은 고른 시·분이 없는 것으로 봄
+export const parseDayTime = (time: TimeString | null): { readonly hour: number; readonly minute: number } | null => {
+  if (time === null) return null;
+  const parsed = parseTime(time);
+  return parsed.isOk ? parsed.value : null;
+};
+
 // Goal: 시를 바꿔도 고른 분을 되도록 지킴. 간격에 안 맞는 분(09:07)도 범위 안이면 그대로 둠
 // Constraint: 분이 그 시에서 범위 밖이면 그 뒤로 가장 가까운 활성 분, 없으면 가장 늦은 활성 분으로 맞춤. 활성 분이 없는 시면 null
 export const resolveHourPick = ({
@@ -78,13 +85,6 @@ const isWithinBounds = ({
 }): boolean => {
   const time = timeAt(hour, minute);
   return time !== null && timeBoundsReason(time, bounds) === null;
-};
-
-// Constraint: 두 칸에는 24:00이 없으므로 24:00 값은 고른 시·분이 없는 것으로 봄
-const parseDayTime = (time: TimeString | null): { readonly hour: number; readonly minute: number } | null => {
-  if (time === null) return null;
-  const parsed = parseTime(time);
-  return parsed.isOk ? parsed.value : null;
 };
 
 const timeAt = (hour: number, minute: number): TimeString | null => {
