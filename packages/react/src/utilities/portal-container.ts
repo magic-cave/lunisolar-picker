@@ -1,5 +1,6 @@
 import { type RefCallback, useCallback, useState } from 'react';
 
+const ARIA_MODAL_SELECTOR = ':is([role="dialog"], [role="alertdialog"])[aria-modal="true"]';
 const MODAL_DIALOG_SELECTOR = 'dialog:modal';
 const OPEN_DIALOG_SELECTOR = 'dialog[open]';
 
@@ -8,9 +9,9 @@ export type PortalContainer = {
   readonly container: HTMLElement | null;
 };
 
-// Goal: 열린 모달 dialog 안에서 연 표면은 그 dialog 안에 그려야 브라우저 최상위 층 위에서 보이고 조작됨. 나중에 비네이티브 모달을 지원할 때는 이 함수 앞에 공개 prop만 얹음
+// Goal: 열린 모달 안에서 그려야 네이티브 최상위 층에서 보이고 호스트 모달의 포커스 범위 안에서 조작됨.
 export const resolvePortalContainer = (anchor: Element): HTMLElement =>
-  anchor.closest<HTMLElement>(findModalDialogSelector()) ?? anchor.ownerDocument.body;
+  anchor.closest<HTMLElement>(`${findModalDialogSelector()}, ${ARIA_MODAL_SELECTOR}`) ?? anchor.ownerDocument.body;
 
 // Constraint: :modal은 Chrome 105·Safari 15.6부터라 하한(Chrome 99·Safari 15.5)에서는 열린 dialog로 대신 찾음. 그 브라우저에서는 show()로 연 비모달 dialog도 걸리는 것을 감수함. SSR 안전을 위해 호출 시점에 판정함
 const findModalDialogSelector = (): string =>
