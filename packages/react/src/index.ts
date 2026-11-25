@@ -31,6 +31,7 @@ export * as Sheet from './sheet/parts';
 export { useSheetContext } from './sheet/sheet-context';
 export type { SheetApi, UseSheetProps } from './sheet/use-sheet';
 export { useSheet } from './sheet/use-sheet';
+export * from './time-columns/index';
 export * as TimeField from './time-field/parts';
 export { useTimeFieldContext } from './time-field/time-field-context';
 export type { TimeFieldApi, UseTimeFieldProps } from './time-field/use-time-field';

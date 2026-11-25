@@ -74,6 +74,21 @@ const SUBJECTS: readonly Subject[] = [
       />
     ),
   },
+  {
+    name: 'date-time-picker-columns-open',
+    hasPopover: true,
+    element: (
+      <DateTimePicker
+        presentation="popover"
+        defaultOpen
+        defaultValue={DATE_TIME_VALUE}
+        min="2026-11-24T14:10"
+        minuteStep={5}
+        timeLayout="columns"
+        today="2026-11-24"
+      />
+    ),
+  },
   { name: 'wheel-date-picker', hasPopover: false, element: <WheelDatePicker defaultValue="1990-03-15" /> },
   { name: 'wheel-time-picker', hasPopover: false, element: <WheelTimePicker defaultValue="09:30" /> },
 ];

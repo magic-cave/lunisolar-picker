@@ -28,6 +28,7 @@ import {
   type PickerSettings,
   type Presentation,
   type ResolvedPresentation,
+  TimeColumns,
   TimeList,
   type UseCalendarProps,
   type UseDateTimeFieldProps,
@@ -61,6 +62,7 @@ type DateTimePanelProps = {
   readonly picker: DateTimePickerProps;
   readonly presentation: ResolvedPresentation;
   readonly settings: PickerSettings;
+  readonly timeLayout: TimeLayout;
 };
 
 type DateTimeParts = {
@@ -72,6 +74,8 @@ type PendingFieldChange = {
   readonly notify: () => void;
   readonly value: DateTimeString;
 };
+
+export type TimeLayout = 'columns' | 'list';
 
 export interface DateTimePickerProps
   extends Omit<UseDateTimeFieldProps, 'defaultEntryCalendar' | 'entryCalendar' | 'onEntryCalendarChange'>,
@@ -91,6 +95,8 @@ export interface DateTimePickerProps
   readonly ref?: Ref<{ focus(): void }> | undefined;
   readonly renderCell?: ((info: CellRenderInfo) => ReactNode) | undefined;
   readonly renderTrigger?: ((props: TriggerRenderProps) => ReactElement) | undefined;
+  // Goal: 'columns'는 시 칸·분 칸을 따로 둬 1분·5분 간격에서도 시를 빨리 바꿈. 시 고르기는 값만 바꾸고 분을 골라야 고르기 완료(onPick)와 닫힘이 일어남
+  readonly timeLayout?: TimeLayout | undefined;
 }
 
 export const DateTimePicker = (props: DateTimePickerProps): ReactElement => {
@@ -110,6 +116,7 @@ export const DateTimePicker = (props: DateTimePickerProps): ReactElement => {
     presentation = 'auto',
     ref,
     renderTrigger,
+    timeLayout = 'list',
   } = props;
   const settings = usePickerSettings(props);
   const { labels } = settings.locale;
@@ -191,6 +198,7 @@ export const DateTimePicker = (props: DateTimePickerProps): ReactElement => {
         picker={props}
         presentation={resolvedPresentation}
         settings={settings}
+        timeLayout={timeLayout}
       />
     </PickerSurface>
   );
@@ -226,6 +234,7 @@ const DateTimePanel = ({
   picker,
   presentation,
   settings: { calendars, locale, weekStartsOn },
+  timeLayout,
 }: DateTimePanelProps): ReactElement => {
   // Constraint: 표면이 열릴 때만 마운트되므로 닫거나 취소하면 초안을 버림
   const [draft, setDraft] = useState<DateTimeParts>(() => ({ date: field.datePart, time: field.timePart }));
@@ -252,9 +261,12 @@ const DateTimePanel = ({
     if (isConfirmMode) setDraft((previous) => ({ ...previous, date: next }));
     else field.setDatePart(next);
   };
-  const pickTime = (next: TimeString): void => {
+  const selectTime = (next: TimeString): void => {
     if (isConfirmMode) setDraft((previous) => ({ ...previous, time: next }));
     else field.setTimePart(next);
+  };
+  const pickTime = (next: TimeString): void => {
+    selectTime(next);
     reportPick(date, next, true);
   };
 
@@ -292,15 +304,30 @@ const DateTimePanel = ({
         >
           <Calendar.Layout renderCell={picker.renderCell} />
         </Calendar.Root>
-        <TimeList.Root
-          aria-label={locale.labels.chooseTime}
-          max={timeBounds.max ?? undefined}
-          min={timeBounds.min ?? undefined}
-          minuteStep={minuteStep}
-          onPick={pickTime}
-          tabIndex={-1}
-          value={time}
-        />
+        {timeLayout === 'columns' ? (
+          <TimeColumns.Root
+            aria-label={locale.labels.chooseTime}
+            hourLabel={locale.labels.hour}
+            max={timeBounds.max ?? undefined}
+            min={timeBounds.min ?? undefined}
+            minuteLabel={locale.labels.minute}
+            minuteStep={minuteStep}
+            // Constraint: 분 고르기는 onValueChange 뒤에 onPick이 오므로 값 반영은 onValueChange에 맡기고 onPick에서는 알림·닫기만 함
+            onPick={(next) => reportPick(date, next, true)}
+            onValueChange={selectTime}
+            value={time}
+          />
+        ) : (
+          <TimeList.Root
+            aria-label={locale.labels.chooseTime}
+            max={timeBounds.max ?? undefined}
+            min={timeBounds.min ?? undefined}
+            minuteStep={minuteStep}
+            onPick={pickTime}
+            tabIndex={-1}
+            value={time}
+          />
+        )}
       </div>
       {picker.footer}
       {isConfirmMode ? (

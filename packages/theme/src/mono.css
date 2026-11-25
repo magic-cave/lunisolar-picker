@@ -1029,6 +1029,40 @@
     background: transparent;
   }
 
+  /* 시·분 두 칸은 한 상자 안에 나란히 두고 칸마다 따로 스크롤함. 높이는 한 줄 목록과 같게 묶음 */
+  [data-lsp-part="time-columns"] {
+    display: flex;
+    gap: 2px;
+    max-block-size: 240px;
+    border: 1px solid var(--lsp-border);
+    border-radius: var(--lsp-radius);
+    background: var(--lsp-surface);
+    color: var(--lsp-fg);
+    color-scheme: var(--lsp-color-scheme);
+  }
+
+  [data-lsp-part="popover"] [data-lsp-part="time-columns"],
+  [data-lsp-part="sheet"] [data-lsp-part="time-columns"] {
+    border: 0;
+    background: transparent;
+  }
+
+  /* 포커스 테두리가 스크롤 가장자리에서 잘리지 않도록 한 줄 목록과 같은 안쪽 여백과 scroll-padding을 둠 */
+  [data-lsp-part="time-column"] {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    inline-size: 3em;
+    min-block-size: 0;
+    margin: 0;
+    padding: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-block: 4px;
+    font-variant-numeric: tabular-nums;
+    list-style: none;
+  }
+
   [data-lsp-part="time-option"] {
     display: flex;
     flex: none;
@@ -1153,6 +1187,26 @@
   }
 
   [data-lsp-part="sheet"] [data-lsp-part="date-time-panel"] > [data-lsp-part="time-list"] {
+    inline-size: auto;
+    max-block-size: 240px;
+    border-block-start: 1px solid var(--lsp-border);
+    border-inline-start: 0;
+    contain: none;
+  }
+
+  /* 한 줄 목록처럼 달력 높이를 따름. contain: size라 내용 폭이 없으므로 두 칸 폭(3em씩)과 간격·테두리를 더해 폭을 정함 */
+  [data-lsp-part="date-time-panel"] > [data-lsp-part="time-columns"] {
+    inline-size: calc(6em + 3px);
+    min-block-size: 0;
+    max-block-size: none;
+    flex: none;
+    border-inline-start: 1px solid var(--lsp-border);
+    border-radius: 0;
+    contain: size;
+  }
+
+  [data-lsp-part="sheet"] [data-lsp-part="date-time-panel"] > [data-lsp-part="time-columns"] {
+    justify-content: center;
     inline-size: auto;
     max-block-size: 240px;
     border-block-start: 1px solid var(--lsp-border);

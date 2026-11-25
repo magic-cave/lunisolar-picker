@@ -29,6 +29,8 @@ const SELECTED_ITEM_SELECTORS = [
   '[data-lsp-part="calendar-year-grid"] [data-selected]',
   '[data-lsp-part="time-option"][data-selected]',
 ];
+const TIME_COLUMN_PART = '[data-lsp-part="time-column"]';
+const TIME_COLUMNS_PART = '[data-lsp-part="time-columns"]';
 const TIME_LIST_PART = '[data-lsp-part="time-list"]';
 const VIEW_BUTTON_PART = '[data-lsp-part="calendar-view-button"]';
 const WHEEL_COLUMN_PART = '[data-lsp-part="wheel-column"]';
@@ -174,6 +176,21 @@ describe('mono.css calendar', () => {
 
       expect(listDeclarations).toMatch(/max-block-size:\s*\d+px/);
       expect(listDeclarations).toMatch(/overflow-y:\s*auto/);
+    });
+  });
+
+  describe('time columns', () => {
+    // Constraint: 1분 간격이면 분 칸이 60줄이라 두 칸 상자 높이를 묶고 칸마다 스크롤해야 함
+    it('bounds the box height and scrolls each column inside', async () => {
+      const rules = parseLeafRules(await readMonoCss());
+      const declarationsOf = (part: string): string =>
+        rules
+          .filter((rule) => rule.selectors.includes(part))
+          .map((rule) => rule.declarations)
+          .join(';');
+
+      expect(declarationsOf(TIME_COLUMNS_PART)).toMatch(/max-block-size:\s*\d+px/);
+      expect(declarationsOf(TIME_COLUMN_PART)).toMatch(/overflow-y:\s*auto/);
     });
   });
 

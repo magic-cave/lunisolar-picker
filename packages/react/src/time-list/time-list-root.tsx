@@ -1,37 +1,13 @@
 import type { TimeString } from '@lunisolar-picker/calendar';
 import { resolveTimeBounds, timeBoundsReason, VALID } from '@lunisolar-picker/core';
-import {
-  type HTMLAttributes,
-  type KeyboardEvent,
-  type ReactElement,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { partAttributes } from '../contract/data-attributes';
-import { AUTOFOCUS_ATTRIBUTE } from '../focus/focusable-elements';
+import { type HTMLAttributes, type ReactElement, useMemo } from 'react';
 import type { ValueChangeDetails } from '../settings/shared-picker-props';
-import { mergeProps } from '../utilities/merge-props';
 import { useControllableState } from '../utilities/use-controllable-state';
 import { parseWellFormedTime } from '../value/parse-controlled-value';
 import { listTimes } from './list-times';
+import { ListboxColumn, type ListboxOption } from './listbox-column';
 
 const DEFAULT_MINUTE_STEP = 30;
-const FIRST_INDEX = 0;
-const MISSING_INDEX = -1;
-
-type KeyMoveInput = {
-  readonly disabledOptions: readonly boolean[];
-  readonly focusedIndex: number;
-  readonly key: 'ArrowDown' | 'ArrowUp' | 'End' | 'Home';
-};
-
-type RovingState = {
-  readonly focusedTime: TimeString | null;
-  // Goal: 탭 정지점을 정할 때 본 선택 값. 선택이 바뀐 것을 알아채는 데 씀
-  readonly selectedTime: TimeString | null;
-};
 
 export interface TimeListRootProps
   extends Omit<HTMLAttributes<HTMLUListElement>, 'children' | 'defaultValue' | 'onChange'> {
@@ -60,41 +36,21 @@ export const TimeListRoot = ({
   value,
   ...domProps
 }: TimeListRootProps): ReactElement => {
-  const times = useMemo(() => listTimes(minuteStep, isEndOfDayAllowed), [minuteStep, isEndOfDayAllowed]);
-  const disabledOptions = useMemo(() => {
+  const options = useMemo((): readonly ListboxOption<TimeString>[] => {
     const bounds = resolveTimeBounds(min, max);
-    return times.map((time) => timeBoundsReason(time, bounds) !== null);
-  }, [min, max, times]);
+    return listTimes(minuteStep, isEndOfDayAllowed).map((time) => ({
+      isDisabled: timeBoundsReason(time, bounds) !== null,
+      label: time,
+      value: time,
+    }));
+  }, [min, max, minuteStep, isEndOfDayAllowed]);
   const [selectedTime, setSelectedTime] = useControllableState<TimeString | null>(
     value === undefined ? undefined : parseWellFormedTime(value).value,
     parseWellFormedTime(defaultValue).value,
     undefined,
   );
-  const [storedRoving, setRoving] = useState<RovingState>({ focusedTime: selectedTime, selectedTime });
-  // Constraint: 선택이 바뀌면(고르기, 부모의 새 값) 탭 정지점도 새 선택으로 옮김. 렌더 중 상태 갱신이라 StrictMode 이중 렌더에서도 같은 결과
-  const roving =
-    storedRoving.selectedTime === selectedTime ? storedRoving : { focusedTime: selectedTime, selectedTime };
-  if (roving !== storedRoving) setRoving(roving);
-  // Constraint: 간격에 맞지 않는 값(09:37)이나 목록에 없는 24:00이면 그 앞의 가장 가까운 시각에서 시작함
-  const defaultIndex = Math.max(FIRST_INDEX, disabledOptions.indexOf(false));
-  const tabStopIndex = indexAtOrBefore(times, roving.focusedTime) ?? defaultIndex;
-  const selectedIndex = indexAtOrBefore(times, selectedTime) ?? defaultIndex;
-  const listRef = useRef<HTMLUListElement | null>(null);
 
-  // Goal: 열릴 때와 부모가 값을 바꿀 때 선택한 시각이 목록 안에 보이게 함. 페이지는 움직이지 않도록 목록만 스크롤함. 그리기 전에 옮겨 맨 위가 잠깐 보이지 않게 함
-  // Constraint: 이미 보이는 옵션(클릭으로 고른 옵션 등)이면 움직이지 않음
-  useLayoutEffect(() => {
-    const list = listRef.current;
-    const option = list?.children[selectedIndex];
-    if (list && option instanceof HTMLElement && !isFullyVisibleInList(list, option))
-      scrollToCenterOfList(list, option);
-  }, [selectedIndex]);
-
-  const choose = (index: number): void => {
-    const time = times[index];
-    if (time === undefined || disabledOptions[index]) return;
-    // Constraint: macOS Safari·Firefox는 클릭으로 포커스를 옮기지 않으므로 탭 정지점을 직접 옮김
-    setRoving({ focusedTime: time, selectedTime });
+  const choose = (time: TimeString): void => {
     if (time !== selectedTime) {
       setSelectedTime(time);
       onValueChange?.(time, { validity: VALID });
@@ -102,91 +58,14 @@ export const TimeListRoot = ({
     onPick?.(time);
   };
 
-  const moveFocus = (event: KeyboardEvent<HTMLUListElement>): void => {
-    const { key } = event;
-    if (key === 'Enter' || key === ' ') {
-      event.preventDefault();
-      choose(tabStopIndex);
-      return;
-    }
-    if (key !== 'ArrowDown' && key !== 'ArrowUp' && key !== 'End' && key !== 'Home') return;
-    const nextIndex = nextIndexForKey({ disabledOptions, focusedIndex: tabStopIndex, key });
-    const nextTime = times[nextIndex];
-    const nextOption = event.currentTarget.children[nextIndex];
-    if (nextTime === undefined || !(nextOption instanceof HTMLElement)) {
-      if (disabledOptions.includes(true)) event.preventDefault();
-      return;
-    }
-    event.preventDefault();
-    // Constraint: 문서에 포커스가 없으면 focus 이벤트가 오지 않으므로 옵션의 onFocus에만 기대지 않고 탭 정지점을 직접 옮김
-    setRoving({ focusedTime: nextTime, selectedTime });
-    nextOption.focus();
-  };
-
-  // Constraint: Biome의 role 규칙은 JSX에 직접 쓴 role만 보므로 달력 격자처럼 role을 속성 객체로 펼침 (preflight 2.7)
-  const listProps = mergeProps(
-    { role: 'listbox', ref: listRef, onKeyDown: moveFocus, ...partAttributes('time-list') },
-    domProps,
-  );
-
   return (
-    <ul {...listProps}>
-      {times.map((time, index) => {
-        const isDisabled = disabledOptions[index] ?? false;
-        const isSelected = time === selectedTime;
-        const isTabStop = index === tabStopIndex;
-        const optionProps = {
-          role: 'option',
-          'aria-disabled': isDisabled || undefined,
-          'aria-selected': isSelected,
-          tabIndex: isTabStop ? 0 : -1,
-          // Goal: Popover·Sheet가 열릴 때 선택한 시각이나 첫 활성 시각에 포커스가 가게 함 (스펙 10.4, preflight 3.3)
-          ...(isTabStop ? { [AUTOFOCUS_ATTRIBUTE]: '' } : {}),
-          onClick: () => choose(index),
-          onFocus: () => setRoving({ focusedTime: time, selectedTime }),
-          ...partAttributes('time-option', { disabled: isDisabled, selected: isSelected, focused: isTabStop }),
-        };
-        return (
-          <li key={time} {...optionProps}>
-            {time}
-          </li>
-        );
-      })}
-    </ul>
+    <ListboxColumn
+      {...domProps}
+      hasAutofocus
+      onChoose={choose}
+      options={options}
+      part="time-list"
+      selectedValue={selectedTime}
+    />
   );
-};
-
-// Constraint: times는 오름차순이고 "HH:MM" 고정 폭이라 문자열 비교가 시각 비교와 같음
-const indexAtOrBefore = (times: readonly TimeString[], time: TimeString | null): number | null => {
-  if (time === null) return null;
-  const index = times.reduce(
-    (found, candidate, candidateIndex) => (candidate <= time ? candidateIndex : found),
-    MISSING_INDEX,
-  );
-  return index === MISSING_INDEX ? null : index;
-};
-
-const isFullyVisibleInList = (list: HTMLElement, option: HTMLElement): boolean => {
-  const listRect = list.getBoundingClientRect();
-  const optionRect = option.getBoundingClientRect();
-  return (
-    optionRect.top >= listRect.top + list.clientTop &&
-    optionRect.bottom <= listRect.top + list.clientTop + list.clientHeight
-  );
-};
-
-const nextIndexForKey = ({ disabledOptions, focusedIndex, key }: KeyMoveInput): number => {
-  if (key === 'Home') return disabledOptions.indexOf(false);
-  if (key === 'End') return disabledOptions.lastIndexOf(false);
-  const offset = key === 'ArrowDown' ? 1 : -1;
-  for (let index = focusedIndex + offset; index >= FIRST_INDEX && index < disabledOptions.length; index += offset) {
-    if (!disabledOptions[index]) return index;
-  }
-  return MISSING_INDEX;
-};
-
-const scrollToCenterOfList = (list: HTMLElement, option: HTMLElement): void => {
-  const listTop = list.getBoundingClientRect().top + list.clientTop;
-  const optionRect = option.getBoundingClientRect();
-  list.scrollBy({ top: optionRect.top - listTop - (list.clientHeight - optionRect.height) / 2 });
 };

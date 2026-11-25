@@ -18,6 +18,8 @@ Without children the root renders the same parts. Set `min` and `max` to inclusi
 
 For a list of times to click, `TimeList.Root` renders a `listbox` of options at `minuteStep` intervals. Its `min` and `max` keep out-of-bounds options visible and disabled. Arrow keys, Home, and End skip them. [TimePicker](../../pickers/time-picker/) puts this list in a popover.
 
+For separate hour and minute choices, `TimeColumns.Root` renders a `group` with two `listbox` columns, named by `aria-label`, `hourLabel`, and `minuteLabel`. It accepts the same `value`, `defaultValue`, `min`, `max`, and `minuteStep` (default `30`). Picking an hour calls only `onValueChange`. Picking a minute calls `onValueChange` when the value changes and always calls `onPick`. Left and Right arrow keys move between the columns. [DateTimePicker](../../pickers/date-time-picker/) uses it with `timeLayout="columns"`.
+
 | Part | Renders | Notes |
 |---|---|---|
 | `Root` | `div[role=group]` | Owns state. Accepts `min`, `max`, `minuteStep` (default `1` here), and `isEndOfDayAllowed`. |

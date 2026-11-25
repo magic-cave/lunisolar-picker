@@ -62,6 +62,8 @@ export const PART_NAMES = [
   'month-calendar-header',
   'time-list',
   'time-option',
+  'time-columns',
+  'time-column',
   'date-picker',
   'date-range-picker',
   'date-time-picker',
