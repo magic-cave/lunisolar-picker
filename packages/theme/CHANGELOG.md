@@ -1,5 +1,11 @@
 # @lunisolar-picker/theme
 
+## 0.4.0
+
+### Minor Changes
+
+- a28c71d: Add `timeLayout="columns"` to `DateTimePicker` to pick the hour and the minute in separate columns, and the `TimeColumns.Root` part behind it. Picking an hour keeps the popover open, and picking a minute completes the time.
+
 ## 0.3.0
 
 ### Minor Changes
