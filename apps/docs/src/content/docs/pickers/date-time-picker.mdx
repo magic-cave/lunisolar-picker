@@ -28,6 +28,19 @@ Type the date and time in the same field, or open the calendar and time list. Th
 - Both parts must be filled in before the picker has a value. If you clear one part, the value becomes `null` and the other part stays in the field.
 - In immediate mode, picking a date keeps the popover open. Picking a time closes it once a date is present. With `commitMode="confirm"`, picks stay in a draft until Confirm, which requires a complete, valid choice. Closing without confirming discards the draft. The bottom sheet follows the same rules.
 
+## Hour and minute columns
+
+A one-minute or five-minute `minuteStep` makes the time list long. Set `timeLayout="columns"` to show an hour column and a minute column side by side instead.
+
+```tsx
+<DateTimePicker aria-label="Park until" minuteStep={1} timeLayout="columns" value={value} onValueChange={setValue} />
+```
+
+- Picking an hour changes only the hour and keeps the popover open. The minute stays when it fits the new hour. Otherwise it moves to the next allowed minute.
+- Picking a minute completes the time like a pick in the list, so it closes the popover once a date is present.
+- Hours with no allowed minute and minutes outside `min` and `max` for the selected hour are disabled.
+- Left and Right arrow keys move between the columns.
+
 ## Bounds and forms
 
 The inclusive `min` and `max` bounds accept date-time strings or dates. A date-only `min` starts at `00:00`, and a date-only `max` ends at `23:59`. The calendar disables dates outside the bounds. The time list disables the times outside the bounds on their respective dates.
@@ -41,12 +54,13 @@ A value entered outside the bounds stays in the field and is still submitted by 
 | `value` | `string \| null` | | Controlled canonical date-time string. |
 | `defaultValue` | `string \| null` | `null` | Initial value for uncontrolled use. |
 | `onValueChange` | `(value: DateTimeString \| null, details: { validity }) => void` | | Reports changes to the complete value, or `null` when it becomes incomplete or is cleared. |
-| `onPick` | `(value: DateTimeString) => void` | | Reports an accepted date or time pick when both parts are present, including same-value picks and picks in a confirmation draft. |
+| `onPick` | `(value: DateTimeString) => void` | | Reports an accepted date or time pick when both parts are present, including same-value picks and picks in a confirmation draft. With `timeLayout="columns"`, only minute picks report. |
 | `min`, `max` | `string` | | Inclusive date-time or date bounds. Unreadable bounds are ignored. |
 | `isDateDisabled` | `(date: DateString) => boolean` | | Disable additional days. |
 | `minuteStep` | `number` | `30` | Interval for list options and minute arrow keys. Must divide 60. Typed minutes can fall between options. |
 | `commitMode` | `'immediate' \| 'confirm'` | `'immediate'` | Commit selections as they are picked or wait for Confirm. |
 | `presentation` | `'auto' \| 'popover' \| 'sheet'` | `'auto'` | Use a popover or bottom sheet. Automatic mode opens a sheet on narrow touch screens. |
+| `timeLayout` | `'list' \| 'columns'` | `'list'` | Show times as one list, or as separate hour and minute columns. |
 | `open`, `defaultOpen`, `onOpenChange` | `boolean`, `boolean`, `(open: boolean) => void` | | Control the surface and observe changes to its open state. |
 | `isClearable` | `boolean` | `true` | Show the clear button when the date or time is filled. |
 | `separator` | `string` | locale | Separator between date segments. |
