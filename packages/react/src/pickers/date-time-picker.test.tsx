@@ -35,6 +35,8 @@ type PickerScreen = Awaited<ReturnType<typeof renderPicker>>;
 const triggerOf = (screen: PickerScreen) => screen.getByRole('button', { name: ko.labels.chooseDateTime });
 const dayOf = (screen: PickerScreen, isoDate: string) => screen.getByRole('button', { name: dayLabel(isoDate) });
 const timeOf = (screen: PickerScreen, time: string) => screen.getByRole('option', { name: time });
+const columnOptionOf = (screen: PickerScreen, column: 'hour' | 'minute', name: string) =>
+  screen.getByRole('listbox', { name: ko.labels[column], exact: true }).getByRole('option', { name, exact: true });
 const segmentOf = (screen: PickerScreen, part: 'day' | 'hour' | 'year') =>
   screen.getByRole('spinbutton', { name: ko.labels[part] });
 
@@ -625,6 +627,72 @@ describe('DateTimePicker', () => {
       await expect.element(screen.getByText('Day 24', { exact: true })).toBeVisible();
       const footer = screen.getByText('Deadline help').element();
       expect(footer.previousElementSibling).toHaveAttribute('data-lsp-part', 'date-time-panel');
+    });
+  });
+
+  describe('time layout', () => {
+    const COLUMNS_PROPS = { defaultValue: '2026-11-25T09:30', minuteStep: 15, timeLayout: 'columns' } as const;
+
+    it('renders the single time list by default', async () => {
+      const screen = await renderPicker({ defaultOpen: true });
+
+      await expect.element(screen.getByRole('listbox', { name: ko.labels.chooseTime })).toBeVisible();
+      expect(screen.getByRole('listbox', { name: ko.labels.hour, exact: true }).query()).toBeNull();
+    });
+
+    it('keeps the panel open after an hour pick', async () => {
+      const onValueChange = vi.fn();
+      const onPick = vi.fn();
+      const screen = await renderPicker({ ...COLUMNS_PROPS, onPick, onValueChange });
+
+      await triggerOf(screen).click();
+      await columnOptionOf(screen, 'hour', '14').click();
+
+      await expect.poll(() => onValueChange.mock.calls).toEqual([['2026-11-25T14:30', VALID]]);
+      await expect.element(screen.getByRole('dialog')).toBeVisible();
+      expect(onPick).not.toHaveBeenCalled();
+    });
+
+    it('keeps the panel open after an hour pick by keyboard', async () => {
+      const onValueChange = vi.fn();
+      const screen = await renderPicker({ ...COLUMNS_PROPS, onValueChange });
+
+      await triggerOf(screen).click();
+      // Constraint: WebKit에서는 팝오버의 초기 포커스가 늦게 와 먼저 옮긴 포커스를 달력으로 되돌리므로 자리 잡기를 기다림
+      await expect.element(dayOf(screen, TOMORROW)).toHaveFocus();
+      await focusDirectly(columnOptionOf(screen, 'hour', '09'));
+      await userEvent.keyboard('{ArrowDown}{Enter}');
+
+      await expect.poll(() => onValueChange.mock.calls).toEqual([['2026-11-25T10:30', VALID]]);
+      await expect.element(screen.getByRole('dialog')).toBeVisible();
+      await userEvent.keyboard('{ArrowRight}');
+      await expect.element(columnOptionOf(screen, 'minute', '30')).toHaveFocus();
+    });
+
+    it('closes after a minute pick', async () => {
+      const onPick = vi.fn();
+      const screen = await renderPicker({ ...COLUMNS_PROPS, onPick });
+
+      await triggerOf(screen).click();
+      await columnOptionOf(screen, 'minute', '45').click();
+
+      await expect.poll(() => onPick.mock.calls).toEqual([['2026-11-25T09:45']]);
+      await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('changes only the draft until Confirm in confirm mode', async () => {
+      const onValueChange = vi.fn();
+      const screen = await renderPicker({ ...COLUMNS_PROPS, commitMode: 'confirm', onValueChange });
+
+      await triggerOf(screen).click();
+      await columnOptionOf(screen, 'hour', '14').click();
+      await columnOptionOf(screen, 'minute', '45').click();
+      await expect.element(screen.getByRole('dialog')).toBeVisible();
+      expect(onValueChange).not.toHaveBeenCalled();
+
+      await screen.getByRole('button', { name: ko.labels.confirm }).click();
+
+      await expect.poll(() => onValueChange.mock.calls).toEqual([['2026-11-25T14:45', VALID]]);
     });
   });
 });

@@ -30,6 +30,7 @@ export interface TimeColumnsRootProps
 
 // Goal: 1분·5분 간격처럼 한 줄 목록이 길어질 때 시와 분을 따로 골라 시 단위로 빠르게 옮김
 // Constraint: 콜백·통제 규칙은 TimeList와 같음. 24:00은 칸이 없으므로 아무것도 선택하지 않음
+// Constraint: 스크롤되는 칸 자체가 탭 정지점이 되지 않도록 칸은 tabIndex -1. 탭 정지점은 칸마다 옵션 하나 (DateTimePanel의 TimeList와 같음)
 export const TimeColumnsRoot = ({
   defaultValue,
   hourLabel,
@@ -89,6 +90,7 @@ export const TimeColumnsRoot = ({
         part="time-column"
         ref={hourColumnRef}
         selectedValue={selectedParts === null ? null : padOptionValue(selectedParts.hour)}
+        tabIndex={-1}
       />
       <ListboxColumn
         aria-label={minuteLabel}
@@ -99,6 +101,7 @@ export const TimeColumnsRoot = ({
         part="time-column"
         ref={minuteColumnRef}
         selectedValue={selectedParts === null ? null : padOptionValue(selectedParts.minute)}
+        tabIndex={-1}
       />
     </div>
   );
