@@ -1,5 +1,13 @@
 # @lunisolar-picker/react
 
+## 0.4.1
+
+### Patch Changes
+
+- ec1b34e: Keep picker surfaces inside the nearest modal dialog, including ARIA dialogs, so keyboard focus stays within the host modal.
+- @lunisolar-picker/calendar@0.4.1
+  - @lunisolar-picker/core@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes

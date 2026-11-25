@@ -1,6 +1,6 @@
 {
   "name": "@lunisolar-picker/core",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Framework-agnostic state, constraints, month grids and gestures for lunisolar-picker",
   "keywords": [
     "datepicker",
